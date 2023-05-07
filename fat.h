@@ -1,0 +1,177 @@
+#ifndef _AHCI_H_
+#define _AHCI_H_
+
+#include "Types.h"
+#include "file.h"
+#include "list.h"
+
+#define FAT_LFN_MAX_LEN 		(20*13)
+
+#define FAT_ATTR_READ_ONLY		0x01
+#define FAT_ATTR_HIDDEN			0x02
+#define FAT_ATTR_SYSTEM			0x04
+#define FAT_ATTR_VOLUME_ID		0x08
+#define FAT_ATTR_DIRECTORY 		0x10
+#define FAT_ATTR_ARCHIVE		0x20
+#define FAT_ATTR_LFN (FAT_ATTR_READ_ONLY|FAT_ATTR_HIDDEN|FAT_ATTR_SYSTEM|FAT_ATTR_VOLUME_ID)
+#define FAT_ATTR_SFN 
+#define FAT_ATTR_NOT_EXIST 
+
+// FAT32 Spec _SDA Contribution_.doc - 3.1
+// Size - 36B
+struct fat_bios_param_blk {
+	u8 		bootjmp[3];
+	u8 		oem_name[8];
+	u16 	bytes_per_sector;
+	u8		sectors_per_cluster;
+	u16		reserved_sector_count;
+	u8		fat_num;
+	u16		root_entry_count;
+	u16		fat16_total_sectors;
+	u8		media_type;
+	u16		fat16_region_size;
+	u16		sectors_per_track;
+	u16		head_side_count;
+	u32 	hidden_sector_count;
+	u32 	fat32_total_sectors;
+}__attribute__((packed));
+
+struct fat_ext_bios_param_blk32
+{
+	//extended fat32 stuff
+	unsigned int		fat32_region_size;
+	unsigned short		extended_flags;
+	unsigned short		fat_version;
+	unsigned int		root_cluster;
+	unsigned short		fat_info;
+	unsigned short		backup_BS_sector;
+	unsigned char 		reserved_0[12];
+	unsigned char		drive_number;
+	unsigned char 		reserved_1;
+	unsigned char		boot_signature;
+	unsigned int 		volume_id;
+	unsigned char		volume_label[11];
+	unsigned char		fat_type_label[8];
+}__attribute__((packed));
+
+struct fat_fsinfo {
+
+}__attribute__((packed));
+
+struct fat_reserved_sector_region {
+	struct fat_bios_param_blk bpb;
+	struct fat_ext_bios_param_blk32 ext_bpb; 
+	struct fat_fsinfo fsi;
+};
+
+// FAT32 Spec _SDA Contribution_.doc - Section 6 : Directory Structure
+// Size : 32B 
+struct fat_sfn {
+	char name[11];	// 8 characters and 3 extension
+	u8 attr;
+	u8 reserved; 					// must be 0
+	u8 create_time_tenth;
+	u16 create_time;
+	u16 create_date;
+	u16 last_access_date;
+	u16 start_clu_num_h;
+	u16 last_mod_time;
+	u16 last_mode_date;
+	u16 start_clu_num_l;
+	u32 file_size;
+}__attribute__((packed));
+
+// FAT32 Spec _SDA Contribution_.doc - Section 7 : Long File Name Implementation
+// Size : 32B
+struct fat_lfn {
+	// long directory entry
+	u8 order;
+	char name1[10];
+	u8 attr;
+	u8 type;
+	u8 chk; // checksum
+	char name2[12];
+	u16 rsvd;
+	char name3[4];
+	// short directory entry
+}__attribute__((packed));
+
+
+struct fat_common {
+	u32 offset;
+	u32 attr;
+	char name[FAT_LFN_MAX_LEN];
+};
+
+struct fat_file {
+	u32 offset;
+	u32 attr;
+	char name[FAT_LFN_MAX_LEN];
+
+	u8 lfn;
+	u8 removed;
+	u32 clus_num;
+	u32 clus_chain[50];	
+	struct list_head list;
+};
+
+struct fat_dir_tree {
+	//struct fat_dir dirs[50];
+};
+
+struct fat_dir {
+	u32 offset;
+	u32 attr;
+	char name[FAT_LFN_MAX_LEN];
+	struct list_head *list;
+};
+
+/*
+struct fat ext_bios_param_blk {
+#ifdef CONFIG_FAT12_16
+
+
+#endif
+#ifdef CONFIG_FAT32
+
+
+#endif
+};
+
+struct efef {
+
+}; 
+
+
+
+
+
+struct fat_alloc_table {
+
+};
+
+struct fat_fat_region {
+	struct fat_alloc_table tbl1;
+	struct fat_alloc_table tbl2;
+};
+
+struct fat_data_region {
+
+};
+
+struct fat_region {
+	struct fat_reserved_sector_region reserved; 
+	struct fat_fat_region fat;
+#ifdef CONFIG_FAT12_16
+	struct fat_root_directory_region root;
+#endif
+	struct fat_data_region data;
+};
+
+struct fat32_region {
+
+};
+*/
+
+int fat_init(u64 *base);
+#endif
