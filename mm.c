@@ -31,7 +31,7 @@
 #define MM_BUD_FREE		0x00000000
 #define MM_BUD_USED		0x00000001
 
-u32 BITMAP_INIT32[]= { 0x00000000, 0xFFFFFFFE, 0xFFFFFFFC, 0xFFFFFFF0, 0xFFFFFF00, 0xFFFF0000 };
+u32 BITMAP_INIT32[]= { 0xFFFFFFFE, 0xFFFFFFFC, 0xFFFFFFF0, 0xFFFFFF00, 0xFFFF0000, 0x00000000 };
 u64 BITMAP_INIT64[] = { 0x0000000000000000, 0xFFFFFFFE00000000, 0xFFFFFFFC00000000, 0xFFFFFFF000000000, 0xFFFFFF0000000000, 0xFFFF000000000000 , 0xFFFFFFFF00000000 };
 
 #define MM_BITMAP_INIT(x) BITMAP_INIT##mm.bitmap_size
@@ -41,6 +41,8 @@ struct mm_manager {
 	u32 dep;
 	u8 bitmap_size;
 	u32 ll;
+	struct mm_blk_hdr *hdr_base;
+	u32 hdr_size;
 	struct bitmaps *bitmaps;
 
 	// mem layout
@@ -55,7 +57,6 @@ struct mm_manager {
 	u32 heap_meta_size;
 	u32 heap_base;
 	u32 heap_size;
-	u32 heap_hd_size;
 	u32 rmd_size;
 };
 
@@ -97,6 +98,15 @@ int mm_set_info(char *name, u32 *base, u32 size)
 	lout->base = (u32)base;
 	lout->size = size;
 	mm.mem_num++;
+}
+
+static u32 mm_get_chunk(u8 dep)
+{
+	u32 chunk = mm.ll;
+	while(dep--)
+		chunk *= 2;
+
+	return chunk;
 }
 
 static int mm_get_dep(u32 heap_size, u32 ll)
@@ -153,8 +163,10 @@ int mm_init(u64 heap_size)
 
 	u32 num[mm.dep];
 
-	ll = mm.ll;
+	ll = mm.ll; 
 	blocks[0] = (u32 *)mm.heap_meta_base;
+	
+	// bitmaps heap meta data
 	for(i = 0; i < mm.dep ; i++) {
 		num[i] = (mm.heap_size / ll);
 		num[i] = (num[i] / mm.bitmap_size) + ((num[i] % mm.bitmap_size) ? 1 : 0) ;
@@ -163,17 +175,17 @@ int mm_init(u64 heap_size)
 		ll *= 2;
 
 		blocks[i+1] = blocks[i] + num[i];
-		kMemSet(blocks[i], BITMAP_INIT32[0], (u32)blocks[i+1] - (u32)blocks[i]);	
+		kMemSet(blocks[i], BITMAP_INIT32[5], (u32)blocks[i+1] - (u32)blocks[i]);	
 	}
 
 	j = log(2, mm.bitmap_size);
-	for(i = mm.dep-j ; j > 0 ; j--, i++) {
-		*blocks[i] = BITMAP_INIT32[j];
+	for(i = mm.dep-j ; j > -1 ; j--, i++) {
+		*blocks[i] = BITMAP_INIT32[j-1];
 	}
 
 	mm_set_info("BUDDY BITMAPS", blocks[0], (u32)(blocks[mm.dep]) - (u32)(blocks[0]));
 	
-	mm.heap_hd_size = (mm.heap_size / mm.ll) * sizeof(struct mm_blk_hdr);
+	// bitmaps management meta data
 	mm.bitmaps = (struct bitmaps *)(blocks[mm.dep-1] + num[mm.dep-1]);	
 	for(i = 0 ; i < mm.dep ; i++) {
 		mm.bitmaps[i].ord = i;
@@ -183,38 +195,66 @@ int mm_init(u64 heap_size)
 
 	mm_set_info("BUDDY BITMAPS MANAGEMENT", mm.bitmaps, (u32)(mm.bitmaps + (mm.dep)) - (u32)mm.bitmaps);
 
-	mm.heap_base = (u32)(mm.bitmaps + mm.dep);
-	mm.heap_size += mm.heap_hd_size;
+	// bitmaps heap header meta data
+	mm.hdr_base = (u8 *)(mm.bitmaps + mm.dep);
+	mm.hdr_size = (mm.heap_size / mm.ll) * sizeof(struct mm_blk_hdr);
+	
+	mm_set_info("BUDDY BITMAPS HEADER", mm.hdr_base, mm.hdr_size);
+	debug("hdr_base#0x%x, hdr_size#%d\n", mm.hdr_base, mm.hdr_size);
+
+	// heap base
+	mm.heap_base = (u32)(mm.hdr_base + mm.hdr_size);
+	//mm.heap_size += mm.heap_hd_size;
 
 	mm_set_info("KERNEL HEAP", mm.heap_base, mm.heap_size);
 
-	//debug("mm.heap_hd_size#0x%x\n", mm.heap_hd_size);
 	//debug("mm.heap_size#0x%x\n", mm.heap_size);
 	
+#ifdef MM_TEST_HEAP_128K
 	void *a1 = mm_alloc(15400);
 	//debug("15.4K#0x%x\n", a1);
-	//debug("3#0x%x\n", *(mm.bitmaps[3].block));
-	//debug("2#0x%x\n", *(mm.bitmaps[2].block));
-	//debug("1#0x%x\n", *(mm.bitmaps[1].block));
-	//debug("0#0x%x\n", *(mm.bitmaps[0].block));
+	debug("ord#0 block#0x%x\n", *blocks[0]);
+	debug("ord#1 block#0x%x\n", *blocks[1]);
+	debug("ord#2 block#0x%x\n", *blocks[2]);
+	debug("ord#3 block#0x%x\n", *blocks[3]);
+	debug("ord#4 block#0x%x\n", *blocks[4]);
+	debug("ord#5 block#0x%x\n", *blocks[5]);
+	debug("ord#6 block#0x%x\n", *blocks[6]);
 
-	void *a2 = mm_alloc(6700);
+	//void *a2 = mm_alloc(6700);
 	//debug("6.7K#0x%x\n", a2);
+	//debug("ord#0 block#0x%x\n", *blocks[0]);
+	//debug("ord#1 block#0x%x\n", *blocks[1]);
+	//debug("ord#2 block#0x%x\n", *blocks[2]);
+	//debug("ord#3 block#0x%x\n", *blocks[3]);
+	//debug("ord#4 block#0x%x\n", *blocks[4]);
+	//debug("ord#5 block#0x%x\n", *blocks[5]);
+	//debug("ord#6 block#0x%x\n", *blocks[6]);
 
-	void *a3 = mm_alloc(1200);
+	//void *a3 = mm_alloc(1200);
 	//debug("1.2K#0x%x\n", a3);
 
-	void *a4 = mm_alloc(43700);
+	//void *a4 = mm_alloc(43700);
 	//debug("43.7K#0x%x\n", a4);
-
-	void *a5 = mm_alloc(27700);
+	
+	//void *a5 = mm_alloc(27700);
 	//debug("27.7K#0x%x\n", a5);
 	
-	mm_free(a1);
-	mm_free(a2);
-	mm_free(a3);
-	mm_free(a4);
-	mm_free(a5);
+	//void *a6 = mm_alloc(27700); // Out of memory
+	//debug("27.7K#0x%x\n", a6);
+	
+	//void *a7 = mm_alloc(3029);
+
+	//void *a8 = mm_alloc(2200); // Out of memory
+	//debug("2.2K#0x%x\n", a8);
+	
+	//void *a9 = mm_alloc(892);
+	
+	//mm_free(a3);
+	//mm_free(a8);
+	//mm_free(a9);
+	//mm_free(a7);
+#endif
 
 	return 0;
 }
@@ -307,13 +347,6 @@ static int mm_find_free_byte(u32 dep)
 	return -1;
 }
 
-static bool mm_is_used(u32 dep, u32 ost)
-{
-	u32 *blk = (mm.bitmaps[dep].block) + (ost / mm.bitmap_size);
-
-	return (*blk & (0x01 << (ost % mm.bitmap_size)));
-}
-
 static int mm_set_bit(u32 dep, u32 ost, u32 f)
 {
 	u32 *blk;
@@ -338,69 +371,137 @@ static int mm_set_bit(u32 dep, u32 ost, u32 f)
 	return 0;
 }
 
-static int mm_chk_parent(u32 dep, u32 ost)
+static bool mm_is_used(u32 ord, u32 ost)
+{
+	u32 *blk = (mm.bitmaps[ord].block) + (ost / mm.bitmap_size);
+
+	return (*blk & (0x01 << (ost % mm.bitmap_size)));
+}
+
+static bool mm_is_bud_used(u32 ord, u32 ost)
+{
+	u32 bud_ost = ost + ((ost % 2) ? -1 : 1);
+	debug("bud ord#%d, bud ost#%d\n", ord, bud_ost);
+	
+	return mm_is_used(ord, bud_ost);
+}
+
+static bool mm_merge(u8 ord, u32 ost, bool f)
+{
+	mm_set_bit(ord, ost, !!f);
+
+	if(ord == (mm.dep-1)) {
+		debug("this block is largest in buddy. So, it`s buddy is not exist.\n");	
+		return false;
+	}
+
+	if(mm_is_bud_used(ord, ost))
+		return true;
+	
+	return false;
+}
+
+static bool mm_search(u8 ord, u32 ost, bool f)
+{
+	if(mm_is_used(ord, ost))
+		return true;
+
+	mm_set_bit(ord, ost, !!f);
+	return false;
+}
+
+static int mm_chk_parent(u32 ord, u32 ost, bool f, bool (*mm_is_stop)(u8, u32, bool))
 {
 	u32 i, n;
-	if(dep < 0) {
-		debug("Invalid Parameter#%d\n", dep);
+	
+	if(ord < 0 || ord >= mm.dep) {
+		debug("Invalid Parameter#%d\n", ord);
 		return -EINVAL;
 	}
 
-	if(dep == -1) 
-		return 0;
-
-	for(i = dep, n = ost/2; i < mm.dep ; i++, n = n/2) {
-		if(mm_is_used(i, n))
-			return 0;
-
-		mm_set_bit(i, n , MM_BUD_USED);
+	if(ost < 0) {
+		debug("Invalid Parameter#%d\n", ost);
+		return -EINVAL;
 	}
-	
+
+	for(i = ord+1, n = ost/2; i < mm.dep ; i++, n = n/2) {
+		debug("ord#%d, ost#%d\n", i, n);	
+		if(mm_is_stop(i, n, f)) {
+			debug("already used ord#%d block#%d\n", i, n);			
+			return 0;
+		}
+	}
+
 	return 0;
 }
 
-static int mm_chk_childs(u32 dep, u32 ost)
+static int mm_chk_childs(u32 ord, u32 ost, bool f)
 {
 	int i, j, n, k = 1;
 
-	if(dep < 0) {
-		debug("Invalid Parameter#%d\n", dep);
+	if(ord < 0 || ord >= mm.dep) {
+		debug("Invalid Parameter#%d\n", ord);
 		return -EINVAL;
 	}
 
-	if(dep == -1) 
-		return 0;
+	if(ost < 0) {
+		debug("Invalid Parameter#%d\n", ost);
+		return -EINVAL;
+	}
 
 	n = ost;
-	for(i = dep ; i>-1 ; i--) {
+	for(i = ord-1 ; i>-1 ; i--) {
 		n *= 2;
 		k *= 2;
 		for(j = n; j < n+k; j++) {
-			mm_set_bit(i, j, MM_BUD_USED);
+			mm_set_bit(i, j, !!f);
 		}
 	}
+	/*
+	n = ost;
+	for(i = ord-1 ; i>-1 ; i--) {
+		j = 0;
+		n *= 2;
+		k *= 2;
+		m = (k / mm.bitmap_size) + (k % mm.bitmap_size);
+		m = (log(2, m) > 5) ? 5 : log(2, m); 
+	
+		do {
+			blk = (mm.bitmaps[i].block) + (n / mm.bitmap_size) + j;
+			*blk = *blk | (~BITMAP_INIT32[m]);
+			
+			j++;	
+		} while(j < (k / mm.bitmap_size));
+	}
+	*/
+
+	return 0;
 }
 
-static int mm_find_free(dep)
+static int mm_find_free(int ord)
 {
 	int ost, byte_ost, bit_ost;
 
-	if(dep < 0) {
-		debug("Invalid Parameter#%d\n", dep);
+	if(ord < 0) {
+		debug("Invalid Parameter#%d\n", ord);
 		return -EINVAL;
 	}
 
-	byte_ost = mm_find_free_byte(dep);
-	if(byte_ost < 0)
+	byte_ost = mm_find_free_byte(ord);
+	if(byte_ost < 0) {
+		debug("requested size of block is not exist\n");
 		return byte_ost;
+	}
 
-	bit_ost = mm_find_free_bit(dep, byte_ost);
+	bit_ost = mm_find_free_bit(ord, byte_ost);
 	if(bit_ost < 0)
 		return bit_ost;
 
 	ost = (byte_ost * mm.bitmap_size) + bit_ost;
-	mm_chk_childs(dep-1, ost);	
-	mm_chk_parent(dep+1, ost);
+	
+	mm_set_bit(ord, ost, MM_BUD_USED);
+	mm_chk_childs(ord, ost, MM_BUD_USED);	
+	mm_chk_parent(ord, ost, MM_BUD_USED, mm_search);
 
 	return ost;	
 }
@@ -408,70 +509,83 @@ static int mm_find_free(dep)
 static void *mm_encode(u32 chunk, u32 ost, u8 dep)
 {
 	int err;
-	void *addr;
-	u32 hdr_chunk = chunk + sizeof(struct mm_blk_hdr);
-	struct mm_blk_hdr* hdr_base = (struct mm_blk_hdr*)(mm.heap_base + (hdr_chunk*ost));
-	
-	hdr_base->dep = dep;
+	void *addr = (void *)(mm.heap_base + (chunk*ost));
+	struct mm_blk_hdr *hdr = (struct mm_blk_hdr *)(mm.hdr_base + ((chunk*ost)/mm.ll));
 
-	hdr_base += 1;
-	if(((u32)(hdr_base) + chunk) > mm.heap_base + mm.heap_size) {
-		debug("Out of memory#%d\n", (u32)(hdr_base) + chunk);
+	hdr->dep = dep;
+	//debug("hdr_base#0x%x\n", hdr_base);
+	if(((u32)(addr) + chunk) > mm.heap_base + mm.heap_size) {
+		debug("Out of memory#%d\n", (u32)(addr) + chunk);
 		return NULL; 
 	}
 
-	return (void *)hdr_base;
+	return addr;
 }
 
 void* mm_alloc(u32 size)
 {
-	u32 chunk, dep, ost;
+	int chunk, ord, ost;
 	void *addr;
 
 	if(size < 1) {
 		debug("Invaid Parameter#%d\n", size);
-		return size;
+		return NULL;
 	}
 
+	debug("===========Start alloc===========\n");
 	chunk = mm_rndup(size);
 	if(chunk < mm.ll)
-		return chunk;	
+		return NULL;	
 
-	dep = mm_get_ord(chunk);
-	if(dep < 0) 
-		return dep;
+	ord = mm_get_ord(chunk);
+	if(ord < 0) 
+		return NULL;
 
-	ost = mm_find_free(dep);
+	ost = mm_find_free(ord);
 	if(ost < 0)
-		return ost;
+		return NULL;
 	
-	addr = mm_encode(chunk, ost, dep);
+	debug("ord#%d, ost#%d\n", ord, ost)
+	
+	addr = mm_encode(chunk, ost, ord);
 	if(!addr)
-		return -ENOMEM; 
+		return NULL; 
 	
 	return addr;
 }
 
+static struct mm_blk_hdr *mm_decode(void *addr)
+{
+	u32 chunk_ost = ((u32)addr - mm.heap_base);
+	struct mm_blk_hdr *hdr = (struct mm_blk_hdr *)(mm.hdr_base + (chunk_ost)/mm.ll);
+	
+	return hdr;
+}
+
 void mm_free(void *addr)
 {
-	struct mm_blk_hdr *hdr = (struct mm_blk *)((u8 *)addr - sizeof(struct mm_blk_hdr));		
+	struct mm_blk_hdr *hdr;
+	u32 chunk_ost, chunk, ost, ord;
 
-/*	
-	ost = decode();	
+	if(!addr || (mm.heap_base > (u32)addr)) {
+		debug("Invalid parameter#0x%x\n", addr);
+		return -EINVAL;
+	}
 
-	set_bit(ost);
+	hdr = mm_decode(addr);	
+	ord = hdr->dep;
+	chunk = mm_get_chunk(hdr->dep);
+	chunk_ost = ((u32)addr - mm.heap_base);
+	ost = chunk_ost/ chunk;
+	
+	debug("===========Start free===========\n");
+	debug("ord#%d, ost#%d\n", ord, ost)
 
-	ret = compare_buddy();
-	ok = check_merge(ret);
-	if(ok)
-		merge();
-	else
-		finish();
-	mm_chk_childs(dep-1, ost);	
-	mm_chk_parent(dep+1, ost);
-*/
-
-	debug("addr#0x%x, dep#0x%x\n", hdr, hdr->dep);
-	debug("addr#0x%x, dep#0x%x\n", (u32)hdr - mm.heap_base, hdr->dep);
+	mm_set_bit(ord, ost, MM_BUD_FREE);
+	mm_chk_childs(ord, ost, MM_BUD_FREE);
+	if(!mm_is_bud_used(ord, ost)) {
+		debug("free chunk#%d ost#%d\n", chunk, ost);
+		mm_chk_parent(ord, ost, MM_BUD_FREE, mm_merge);
+	}
 }
 
