@@ -14,6 +14,7 @@
 #define FAT_ATTR_DIRECTORY 		0x10
 #define FAT_ATTR_ARCHIVE		0x20
 #define FAT_ATTR_LFN (FAT_ATTR_READ_ONLY|FAT_ATTR_HIDDEN|FAT_ATTR_SYSTEM|FAT_ATTR_VOLUME_ID)
+#define FAT_LAST_LONG_ENTRY			0x40
 #define FAT_ATTR_SFN 
 #define FAT_ATTR_NOT_EXIST 
 
@@ -22,18 +23,18 @@
 struct fat_bios_param_blk {
 	u8 		bootjmp[3];
 	u8 		oem_name[8];
-	u16 	bytes_per_sector;
-	u8		sectors_per_cluster;
+	u16 	bps;
+	u8		spc;
 	u16		reserved_sector_count;
 	u8		fat_num;
 	u16		root_entry_count;
-	u16		fat16_total_sectors;
+	u16		f16_ts;
 	u8		media_type;
 	u16		fat16_region_size;
 	u16		sectors_per_track;
 	u16		head_side_count;
 	u32 	hidden_sector_count;
-	u32 	fat32_total_sectors;
+	u32 	f32_ts;
 }__attribute__((packed));
 
 struct fat_ext_bios_param_blk32
@@ -69,15 +70,15 @@ struct fat_reserved_sector_region {
 struct fat_sfn {
 	char name[11];	// 8 characters and 3 extension
 	u8 attr;
-	u8 reserved; 					// must be 0
-	u8 create_time_tenth;
-	u16 create_time;
-	u16 create_date;
-	u16 last_access_date;
-	u16 start_clu_num_h;
-	u16 last_mod_time;
-	u16 last_mode_date;
-	u16 start_clu_num_l;
+	u8 rsvd; 					// must be 0
+	u8 crt_time_tenth;
+	u16 crt_time;
+	u16 crt_date;
+	u16 lst_acc_date;
+	u16 fst_clus_hi;
+	u16 wrt_time;
+	u16 wrt_date;
+	u16 fst_clus_lo;
 	u32 file_size;
 }__attribute__((packed));
 
@@ -85,11 +86,11 @@ struct fat_sfn {
 // Size : 32B
 struct fat_lfn {
 	// long directory entry
-	u8 order;
+	u8 ord;
 	char name1[10];
 	u8 attr;
 	u8 type;
-	u8 chk; // checksum
+	u8 crc; // checksum
 	char name2[12];
 	u16 rsvd;
 	char name3[4];
@@ -112,7 +113,6 @@ struct fat_file {
 	u8 removed;
 	u32 clus_num;
 	u32 clus_chain[50];	
-	struct list_head list;
 };
 
 struct fat_dir_tree {
@@ -122,8 +122,10 @@ struct fat_dir_tree {
 struct fat_dir {
 	u32 offset;
 	u32 attr;
+	u32 num;
 	char name[FAT_LFN_MAX_LEN];
-	struct list_head *list;
+	struct fat_file *files;
+	void *base, *cur;	
 };
 
 /*
@@ -174,4 +176,6 @@ struct fat32_region {
 */
 
 int fat_init(u64 *base);
+int fat_crt(const u8 attr, const char *name);
+
 #endif

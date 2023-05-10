@@ -3,6 +3,11 @@
 
 #include "list.h"
 
+enum {
+	MM_UL 			= 0x01, // User Level
+	MM_KL 			= 0x02, // Kernel Level
+	MM_FIX 			= 0x04, // No Swap
+};
 // In yohdaOS, it assumes size of RAM is 4GB.
 // So, if you assumes that size of order-0-block is 2KB, the number of total chunks are 0x200000.
 // But, those is managed from bitmaps. So, those need to be devided from 32 becuase size of bitmap is 32.
@@ -36,7 +41,7 @@ struct mm_blk {
 };
 
 int mm_init();
-void* mm_alloc(u32 size);
+void* mm_alloc(u32 size, u32 flag);
 void mm_free(void *addr);
 
 #endif
