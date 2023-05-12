@@ -7,6 +7,7 @@
 #include "PIT.h"
 #include "mm.h"
 #include "string.h"
+#include "bitmap.h"
 
 // If you wonder the below information, refer to `6.1 File/Directory Name (field DIR_Name)` in Microsoft Word - FAT32 Spec _SDA Contribution_.doc
 // Actually, in SFN, if `KANJI` langauge supported, 0x05 in a value of first character of name fieid means that this entry is free. But, yohdaOS doesn`t support `KANJI`.  
@@ -22,7 +23,7 @@ bool sfn_inval_tbl[128] = { 0x00, };
 #define FAT_32_BASE_MEM 			0x20000000
 #define FAT_32_fba 		0x20010000
 #define FAT_32_rba	0x20400000
-#define FAT_32_dba 		0x20500000
+#define FAT_32_cba 		0x20500000
 
 #define F32_SFN_LEN 	11
 #define FAT_SFN_NAME	8
@@ -45,13 +46,15 @@ const u16 lfn_pad[] = { 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 
 const u8 lfn_ost[] = { 1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30 };
 const u8 fat_offset[TYPE_FAT_NUM] = {2, 2, 4, 0}; // FAT12 , FAT16, FAT32, EXFAT(Not Supported)
 
+// The `fat_info` data structure is information storage about FAT32. 
+// So, it means that its variable is constants, that is, read-only. 
 struct fat_info {
 	// Information 
 	u32 ts;			// total sectors
 	u32 tc;			// total clusters
 	u32 bps;		// bytes per sector
 	u32 spc;		// sectors per cluster
-	u32 ds;			// directory size
+	u32 ds;			// default a root directory size
 
 	u8 type;
 	
@@ -64,28 +67,43 @@ struct fat_info {
 	u32 rfs;		// root directory region first sector
 	u32 rsn;		// root directory region sector number
 	u32 rba;		// root directory region base address
-	void* rmb, rmc; // root directory memory base & current address
 
-	// DATA
-	u32 dfs;		// data region first sector
-	u32 dsn;		// data region sector number
-	u32 dba;		// data region base address
+	// Cluster(Data)
+	u32 cfs;		// cluster region first sector
+	u32 csn;		// cluster region sector number
+	u32 cba;		// cluster region base address
 
 	bool lfn;		// supported lfn
 };
 
-struct fat_dir_manager {
-	struct fat_dir_tree tr;	
+// 각 디렉토리는 클러스터 사이즈만큼의 루트 디렉토리 영역에 메모리를 할당받는다. 만약, 특정 디렉토리가 할당받은 영역을 초과하면 아래의 rcp가 가리키는 곳에 새롭게 클러스터 사이즈만큼 영역을 할당 받는다.
+struct fat_mem {
 	struct fat_dir cd; // current directory
+	struct bst_node root;
+	
+	// FAT memory management
+	u32 f_size;
+	void *fbp, *fcp;
+	struct bitmap fbit;
+
+	// root directory memory management 
+	u32 r_size;
+	void *rbp, *rcp;
+	struct bitmap rbit;
+	
+	// cluster(data) memory management
+	u32 c_size;
+	void *cbp, *ccp;
+	struct bitmap cbit;
 };
 
-struct fat_dir_manager dir_mgr;
+struct fat_mem fmm;
 struct fat_info fat;
 
-static int fat_read_rr(u32 ost, u32 cnt, int size, void *to)
+static int fat_read_rr(u32 ost, int size, void *to)
 {
-	int sc = (size + (fat.bps-1)) / fat.bps	
-	return ahci_read(fat.rfs + ost, cnt, to);
+	int sc = (size + (fat.bps-1)) / fat.bps;	
+	return ahci_read(fat.rfs + ost, sc, to);
 }
 
 int fat_print_fat(void)
@@ -102,12 +120,12 @@ int fat_print_fat(void)
 	// Each first sector of region
 	fat_debug("FAT Region first sector#%d\n", fat.ffs);
 	fat_debug("Root Directory Region first sector#%d\n", fat.rfs);
-	fat_debug("DATA first sector#%d\n", fat.dfs);
+	fat_debug("DATA first sector#%d\n", fat.cfs);
 
 	// Each region size of region
 	fat_debug("FAT Region sector number#%d\n", fat.fsn);
 	fat_debug("Root Directory Region Sector Number#%d\n", fat.rsn);
-	fat_debug("Data Region Sector Number#%d\n", fat.dsn);
+	fat_debug("Data Region Sector Number#%d\n", fat.csn);
 }
 
 int fat_init(u64 *fat_base)
@@ -141,24 +159,20 @@ int fat_init(u64 *fat_base)
 	if(fat.type == TYPE_FAT32)
 		fat.rsn = fat.spc * FAT_32_ROOT_DIR_CLUS_NUM;	
 
-	fat.dfs = fat.ffs + fat.fsn + fat.rsn; 
+	fat.cfs = fat.ffs + fat.fsn + fat.rsn; 
 		
 	// Root Directory
 	if(fat.type == TYPE_FAT32)
-		fat.rfs = ((ext_bpb.root_cluster - 2) * bpb.spc) + fat.dfs - fat.rsn;
+		fat.rfs = ((ext_bpb.root_cluster - 2) * bpb.spc) + fat.cfs - fat.rsn;
 
-	fat.dsn = fat.ts - fat.dfs;	
-	fat.tc = fat.dsn / fat.spc;
+	fat.csn = fat.ts - fat.cfs;	
+	fat.tc = fat.csn / fat.spc;
 
-	// ETC
 	// `Microsoft Word - FAT32 Spec _SDA Contribution_.doc` "6.5 Directory creation"
 	/*
 	 * At least one cluster must be allocated
 	 */
 	fat.ds = fat.bps * fat.spc; 
-
-	fat.rmb = mm_alloc(fat.ds, MM_KL); 
-	fat.rmc = fat.rmb;
 
 	memset(sfn_inval_tbl, 0x01, FAT_INVAL_SFN_LESS_THAN);
 	for(i=0 ; i < (sizeof(sfn_inval)/sizeof(char)) ; i++) {
@@ -168,13 +182,28 @@ int fat_init(u64 *fat_base)
 	// lfn supported
 	fat.lfn = true;
 
-	fat_print_fat();
+	// root directory memory management 
+	fmm.r_size = fat.ds;
+	fmm.rbp = mm_alloc(fmm.r_size, MM_KL);
+	fmm.rcp = fmm.rbp;
+	
+	/* bitmap initialize */ 
+	// There is exception case about remainder... you must to check bitmap leaks. 
+	bitmap_alloc(&fmm.fbit, 32, ((fat.fsn/fat.spc)+31)/32);
+	bitmap_alloc(&fmm.rbit, 32, ((fat.rsn/fat.spc)+31)/32);
+	bitmap_alloc(&fmm.cbit, 32, ((fat.csn/fat.spc)+31)/32);
+
+	/* Initialize rootfs */
 	fat_init_rootfs();
+	
+	/* Print FAT32 information  */
+	fat_print_fat();
 }
 
 int fat_init_rootfs()
 {
-	fat_set_dir(0);
+	fat_read_dir("123");
+	//fat_set_dir(0);
 
 }
 
@@ -182,8 +211,8 @@ void fat_show_dir()
 {
 	int i;
 
-	for(i=0 ; i < dir_mgr.cd.num ;i++) {
-		msg("%s ", dir_mgr.cd.files[i].name);
+	for(i=0 ; i < fmm.cd.num ;i++) {
+		msg("%s ", fmm.cd.files[i].name);
 	}	
 	msg("\n");
 }
@@ -193,6 +222,21 @@ void fat_get_cd()
 	
 }
 
+static int fat_get_fn()
+{
+
+}
+
+static int fat_get_ost(u8 *ent)
+{	
+	bool is_lfn;
+	if(!ent)
+		return NULL;
+	
+	is_lfn = ((*ent) & FAT_LAST_LONG_ENTRY) == FAT_LAST_LONG_ENTRY;
+	return is_lfn ? ((*ent) & 0xBF) + 1 : 1;
+}
+
 int fat_set_dir(u32 ost, char *path)
 {
 	// allocate a cluster per directory in yohdaOS.
@@ -200,9 +244,9 @@ int fat_set_dir(u32 ost, char *path)
 	u8 *tmp, *name;
 	struct fat_file files[20];
 	u8 cnt, i, j, k;
-
+	
 	// rootfs offset is 0 from root dir.
-	fat_read_rr(ost, fat.spc, rr);
+	//fat_read_rr(ost, fat.spc, rr, 0);
 	tmp = rr;
 	for(i = 0, cnt = 0 ; ; cnt = 0) {	
 		// condition of exiting root directory trasvel
@@ -246,10 +290,10 @@ int fat_set_dir(u32 ost, char *path)
 		tmp += ((cnt+1) * FAT_ENTRY_SIZE); // SFN default size 1
 	}
 
-	dir_mgr.cd.num = i;
-	dir_mgr.cd.files = mm_alloc(sizeof(struct fat_file) * i, MM_KL);
-	for(i=0 ; i < dir_mgr.cd.num; i++) {
-		memcpy(&(dir_mgr.cd.files[i]), &files[i], sizeof(struct fat_file));		
+	fmm.cd.num = i;
+	fmm.cd.files = mm_alloc(sizeof(struct fat_file) * i, MM_KL);
+	for(i=0 ; i < fmm.cd.num; i++) {
+		memcpy(&(fmm.cd.files[i]), &files[i], sizeof(struct fat_file));		
 	}
 
 	fat_debug("rootfs file number#%d\n", i);
@@ -452,25 +496,21 @@ int fat_format()
 	
 }
 
-static int fat_parse_sfn(const char *name, struct fat_sfn *sfn)
+static int _fat_crt_sfn(const char *name, struct fat_sfn *sfn)
 {
 	int dot = strchr(name, '.') ? (strchr(name, '.')-name) : -1;	
 	char pad_name[sizeof(char)*F32_SFN_LEN+1]; // `+1` due to NULL.
 	
-	fat_debug("dot#%d\n", dot);
 	memset(pad_name, 0x20, F32_SFN_LEN+1);
 	pad_name[F32_SFN_LEN] = 0;
 	if(dot > -1) {
 		// there is a dot.
 		strncpy(pad_name, name, min(dot, 8));
-		fat_debug("%s\n", pad_name);
 		strncpy(pad_name+8, name+dot+1, min(strlen(name+dot+1), 3));
 	} else {
 		// no dot.
 		strncpy(pad_name, name, strlen(name) >= F32_SFN_LEN ? F32_SFN_LEN : strlen(name));
 	}
-	
-	fat_debug("len#%d, name#%s\n", strlen(pad_name), pad_name);
 
 	strncpy(sfn->name, pad_name, F32_SFN_LEN);
 	
@@ -480,9 +520,9 @@ static int fat_parse_sfn(const char *name, struct fat_sfn *sfn)
 static int fat_val_sfn(char *name)
 {
 	int i;
-	struct fat_file *fs = dir_mgr.cd.files;
+	struct fat_file *fs = fmm.cd.files;
 /*	
-	for(i=0; i < dir_mgr.cd.num ; i++) {
+	for(i=0; i < fmm.cd.num ; i++) {
 		if(!strcmp(fs[i].name, name)) {
 			fat_debug("efef\n")
 			return -1; // There is already file name.
@@ -514,23 +554,22 @@ static int fat_set_tm_dt(struct fat_sfn *sfn)
 	return 0; 	
 }
 
-static int fat_set_props(const u8 attr, struct fat_sfn *sfn)
+static int fat_set_props(struct fat_sfn *sfn)
 {
 	struct fat_sfn tmp;
-
-	tmp.attr = attr;
+	
 	tmp.crt_time = 0;
 	tmp.crt_date = 0;
 	tmp.wrt_time = tmp.crt_time;
 	tmp.wrt_date = tmp.crt_date;	
-	
+
 	fat_link_clus(&tmp);
 	fat_set_tm_dt(&tmp);
 	
 	return 0;
 }
 
-static int fat_crt_sfn(char *name, const u8 attr, struct fat_sfn *sfn)
+static int fat_crt_sfn(char *name, struct fat_sfn *sfn)
 {	
 	int i, err;
 	struct fat_sfn tmp;
@@ -539,11 +578,11 @@ static int fat_crt_sfn(char *name, const u8 attr, struct fat_sfn *sfn)
 	if(err)
 		return err;
 
-	err = fat_parse_sfn(name, &tmp);	
+	err = _fat_crt_sfn(name, &tmp);	
 	if(err)
 		return err;
 
-	err = fat_set_props(attr, &tmp);
+	err = fat_set_props(&tmp);
 	if(err)
 		return err;
 
@@ -582,7 +621,7 @@ static u8 fat_calc_crc(u8 *sfn)
 	return (crc);	
 }
 
-static int fat_parse_lfn(u8 *dst, u8 *s, u8 n)
+static int _fat_crt_lfn(u8 *dst, u8 *s, u8 n)
 {
 	int i = 0;
 	int len = strlen(s);
@@ -594,7 +633,7 @@ static int fat_parse_lfn(u8 *dst, u8 *s, u8 n)
 	return 0;
 }
 
-static int fat_crt_lfn(const char *name, u32 attr, u8 crc, struct fat_lfn *lfns)
+static int fat_crt_lfn(const char *name, u8 crc, struct fat_lfn *lfns)
 {
 	int i = 0, err = 0, len = strlen(name);
 	int lfn_num = fat_get_lfns(len);
@@ -606,7 +645,7 @@ static int fat_crt_lfn(const char *name, u32 attr, u8 crc, struct fat_lfn *lfns)
 		tmps[i].attr |= FAT_ATTR_LFN;
 		tmps[i].crc = crc;
 		
-		err = fat_parse_lfn((u8 *)(tmps+i), name, i);
+		err = _fat_crt_lfn((u8 *)(tmps+i), name, i);
 	}
 	
 	fat_pad_lfn(tmps+(i-1), len);	
@@ -621,8 +660,6 @@ static int fat_comb(const struct fat_lfn *lfns, const struct fat_sfn *sfn, struc
 {
 	int i;	
 			
-	fat_debug("yohdalen2#%d\n", n);
-	//memcpy(rde, lfns, n*sizeof(struct fat_lfn));
 	for(i=0 ; i<n ;i++) {
 		memcpy(rde+i, lfns+(n-i-1), sizeof(struct fat_lfn));	
 	}
@@ -631,31 +668,70 @@ static int fat_comb(const struct fat_lfn *lfns, const struct fat_sfn *sfn, struc
 	return 0;
 }
 
-int fat_crt(const u8 attr, const char *name)
+static int fat_alloc_clus()
+{
+		
+}
+
+static int fat_crt_file(const char *name)
+{
+	struct fat_file file;
+	struct fat_sfn sfn;
+
+	sfn.attr |= FAT_ATTR_ARCHIVE;
+
+	fat_crt(name);	
+}
+
+static int fat_crt_dir(const char *name)
+{
+	struct fat_dir dir;
+	struct fat_sfn sfn;
+
+	if(fmm.rcp + fat.ds > fmm.rbp + fmm.r_size) {
+		debug("Allocaed memory size of root directory exceed.\n");
+		return -ENOMEM;
+	}
+
+	// `Microsoft Word - FAT32 Spec _SDA Contribution_.doc` "6.5 Directory creation" 
+	// The `ATTR_DIRECTORY` bit must be set to 0
+	// The `DIR_FileSize` must be set to 0
+	sfn.attr |= FAT_ATTR_DIRECTORY;
+	sfn.file_size = 0;
+
+	// Whenever created a directory, allocate a cluster to it.
+	fmm.rcp += fat.ds;
+	dir.rbp = fmm.rcp;
+	dir.rcp = dir.rbp;
+		
+	fat_crt(name);
+}
+
+int fat_crt(const char *name)
 {
 	int err, lfn_num, len, crc;
 	void *rde; // root directory entry
+	struct fat_file file;
 
 	len = strlen(name);
 	lfn_num = fat_get_lfns(len);
 
-
 	struct fat_lfn lfns[lfn_num];
 	struct fat_sfn sfn;
 
+	memset(lfns, 0, sizeof(lfns));
+	memset(&sfn, 0, sizeof(sfn));
 	rde = mm_alloc(sizeof(lfns) + sizeof(sfn), MM_KL); 
 	if(!rde)
 		return -1;
-	
-	fat_debug("aaa#%d bbb#%d ccc#%d\n", len, lfn_num, sizeof(lfns) + sizeof(sfn));
 
 	memset(rde, 0, sizeof(lfns) + sizeof(sfn));
-	err = fat_crt_sfn(name, attr, &sfn);
+	err = fat_crt_sfn(name, &sfn);
 	if(err)
 		return err;
 
 	crc = fat_calc_crc((u8 *)(sfn.name));
-	err = fat_crt_lfn(name, attr, crc, &lfns);
+	err = fat_crt_lfn(name, crc, &lfns);
 	if(err)
 		return err;
 
@@ -667,50 +743,6 @@ int fat_crt(const u8 attr, const char *name)
 	free(rde);
 	if(err)
 		return err;
-/*
-	//base = fat.rfs;
-	//root_dir_secs = fat.rsn;
-	
-	//fat_debug("ef 0x%x\n", base);
-	//fat_debug("ef 0x%x\n", root_dir_secs);
-	ahci_read(8224, 1, base);
-	lfn = base + 4;
-	sfn = lfn + 1;
-
-	lfn->ord = 0x41;
-	lfn->name1[0] = '1';
-	lfn->name1[2] = '2';
-	lfn->name1[4] = '3';
-	lfn->name1[6] = '.';
-	lfn->name1[8] = 'T';
-	lfn->attr = 0x0f;
-	lfn->crc = 0xa2; 
-	lfn->name2[0] = 'X';
-	lfn->name2[2] = 'T';
-	lfn->name2[5] = 0xFF;
-	lfn->name2[6] = 0xFF;
-	
-	sfn->name[0] = '1';
-	sfn->name[1] = '2';
-	sfn->name[2] = '3';
-	sfn->name[3] = 0x20;
-	sfn->name[4] = 0x20;
-	sfn->name[5] = 0x20;
-	sfn->name[6] = 0x20;
-	sfn->name[7] = 0x20;
-	sfn->name[8] = 'T';
-	sfn->name[9] = 'X';
-	sfn->name[10] = 'T';
-	sfn->attr = 0x20;	
-	sfn->create_time_tenth = 0x39;
-	sfn->create_time = 0x274d;
-	sfn->create_date = 0xa356;
-	sfn->last_access_date = 0xa356;
-	sfn->last_mod_time = 0x274d;
-	sfn->last_mode_date = 0x5458;
-
-	ahci_write(8224, 1, base);	
-*/
 }
 
 int fat_write()
@@ -718,17 +750,103 @@ int fat_write()
 
 }
 
-int _fat_read()
+static void fat_parse_path()
 {
-
+	
 }
 
-int fat_read(const char *name)
+int _fat_read(const char *path)
 {
-	//struct fat_long_dir_entry *base_root_dir = FAT_32_rba;
-	//struct fat_file *file = FAT_32_rba;	
-	u32 root_dir_secs, root_dir_bytes, clu_num, offset;
-	int err;
+			
+}
+
+static int fat_parse_lfn(u8 *base, int ost, int n, char *name)
+{
+	int i = 0, j = 0;
+	u8 tmp[FAT_LFN_MAX_LEN];
+	u8 *ent = base+(ost*FAT_ENTRY_SIZE);
+	
+	// 아래 코드에서 LFN의 패딩으로 존재하는 0xFFFF 코드까지 모두 복사한다.
+	// 하지만 상관없다. C언어의 스트링 처리들은 NULL 종료 기반이기 때문에 큰 무리가 없을 것으로 판단된다.
+	memset(tmp, 0, sizeof(tmp));
+	for(i=0 ; i<n; i++) {
+		for(j=0 ; j<F32_LFN_LEN ; j++) {
+			tmp[(i*F32_LFN_LEN)+j] = ent[lfn_ost[j]];		
+		}
+		
+		ent -= FAT_ENTRY_SIZE;
+	}
+
+	memcpy(name, tmp, n*F32_LFN_LEN);
+
+	return 0;
+}
+
+static int fat_parse_sfn(u8 *base, char *name)
+{
+	
+	return 0;
+}
+
+// LFN이 있으면 SFN은 필요가 없다.LFN이 없을 때만, SFN을 사용한다.
+static void fat_parse_name(u8 *base, int ost, struct fat_file *file)
+{
+	if(!base)
+		return NULL;
+
+	if(ost < -1)
+		return -1;
+
+	if((*base) & FAT_LAST_LONG_ENTRY) {
+		fat_parse_lfn(base, ost-2, ost, file->name);
+	} else {
+		fat_parse_sfn(base, file->name);
+	} 
+
+	return 0;
+}
+
+static int fat_alloc_dir(struct fat_file files, int n)
+{
+	int i;
+	for(i=0 ; i<n ; i++) {
+	
+	}	
+}
+
+// name으로 전달된 경로의 파일들을 쉘에 뿌리는 역할.
+int fat_read_dir(const char *name)
+{
+	int ost = 0, n = 0;
+	u8 *base = mm_alloc(fat.ds, MM_KL), *ent;
+	u32 end = (u32)(base+(fat.ds));
+	struct fat_file files[FAT_LFN_MAX_LEN];
+
+	if(!base)
+		return -1;
+	
+	memset(base, 0, sizeof(fat.ds));
+	fat_read_rr(0, fat.ds, base);
+	
+	memset(files, 0, sizeof(files));
+	for(ent=base ; (u32)(ent)<end ; ent+=(ost*FAT_ENTRY_SIZE)) {
+		ost = fat_get_ost(ent);
+		
+		if(FAT_FREE(*ent))
+			continue;	
+		
+		// PARSE
+		fat_parse_name(ent, ost, files+n);
+		
+		fat_debug("ost#%d, addr#0x%x, name#%s\n", ost, ent, files[n].name);
+		n++;	
+	}
+
+	fmm.cd.num = n;
+	fmm.cd.files = mm_alloc(sizeof(struct fat_file)*n, MM_KL);
+	
+	memset(fmm.cd.files, 0, sizeof(struct fat_file)*n);
+	memcpy(fmm.cd.files, files, n);	
 
 	/*
 	root_dir_secs = fat.rsn;

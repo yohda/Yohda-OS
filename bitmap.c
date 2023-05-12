@@ -21,14 +21,17 @@ int bitmap_alloc(struct bitmap *bmp, const u32 bit, const u32 size)
 		return -1;
 
 	if(bit < 1 || size < 1)
-		return 
-
-	bmp->ptr = mm_alloc(bit*size, MM_KL);
-	if(!bmp->ptr)
 		return -1;
 
+	bmp->base = mm_alloc(bit*size, MM_KL);
+	if(!bmp->base)
+		return -1;
+
+	memset(bmp->base, 0, sizeof(bit*size));
 	bmp->bit = bit;
 	bmp->size = size;
+
+	return 0;
 }
 
 int bitmap_set(struct bitmap *bmp, u32 ost, bool f)
@@ -36,7 +39,7 @@ int bitmap_set(struct bitmap *bmp, u32 ost, bool f)
 	int i = 0, n = 0, bit = 0;
 	u32 *bits;
 
-	if(!bmp || !bmp->ptr)
+	if(!bmp || !bmp->base)
 		return -1;
 
 	bit = bmp->bit;
@@ -53,10 +56,10 @@ int bitmap_get_free(struct bitmap *bmp)
 	int i = 0, j = 0, n = 0, bit = 0;
 	u32 *bits;
 
-	if(!bmp || !bmp->ptr)
+	if(!bmp || !bmp->base)
 		return -1;
 
-	bits = (u32 *)bmp->ptr;
+	bits = (u32 *)bmp->base;
 	bit = bmp->bit;
 	n = bmp->size;	
 	
@@ -75,4 +78,3 @@ int bitmap_get_free(struct bitmap *bmp)
 
 	return i*bit+j;
 }
-

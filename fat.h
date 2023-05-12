@@ -4,8 +4,12 @@
 #include "Types.h"
 #include "file.h"
 #include "list.h"
+#include "bstree.h"
 
-#define FAT_LFN_MAX_LEN 		(20*13)
+// https://en.wikipedia.org/wiki/Long_filename
+// `The long filename system allows a maximum length of 255 UCS-2 characters including spaces and non-alphanumeric characters ...`
+// `The maximum length of a pathname is 256 characters, which includes all parent directories and the filename. 255-character mixed-case long filename is possible only for files, or folders with no sub-folders, at the root folder of any drive...`
+#define FAT_LFN_MAX_LEN 		(256)
 
 #define FAT_ATTR_READ_ONLY		0x01
 #define FAT_ATTR_HIDDEN			0x02
@@ -87,13 +91,16 @@ struct fat_sfn {
 struct fat_lfn {
 	// long directory entry
 	u8 ord;
-	char name1[10];
+	//char name1[10];
+	u16 name1[5];
 	u8 attr;
 	u8 type;
 	u8 crc; // checksum
-	char name2[12];
+	//char name2[12];
+	u16 name2[6];
 	u16 rsvd;
-	char name3[4];
+	//char name3[4];
+	u16 name3[2];
 	// short directory entry
 }__attribute__((packed));
 
@@ -115,17 +122,17 @@ struct fat_file {
 	u32 clus_chain[50];	
 };
 
-struct fat_dir_tree {
-	//struct fat_dir dirs[50];
-};
-
 struct fat_dir {
 	u32 offset;
 	u32 attr;
-	u32 num;
 	char name[FAT_LFN_MAX_LEN];
+	
+	u32 num;
 	struct fat_file *files;
-	void *base, *cur;	
+	struct bst_node node;
+
+	// Each directory has two root directory pointer. a one is base pointer to point a each root directory start address and the another is current pointer to point a location stored on current data. current pointer must be changed whenever data stored. 
+	void *rbp, *rcp;	
 };
 
 /*
@@ -176,6 +183,6 @@ struct fat32_region {
 */
 
 int fat_init(u64 *base);
-int fat_crt(const u8 attr, const char *name);
+int fat_crt(const char *name);
 
 #endif
