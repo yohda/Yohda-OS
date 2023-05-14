@@ -1,4 +1,49 @@
 #include "string.h"
+#include "mm.h"
+
+// https://en.cppreference.com/w/c/string/byte/strtok
+char *strtok(const char *str, const char *delim)
+{
+	static char *stk = NULL;
+	char *tmp = NULL;
+	static int len = 0; 
+	static int i = 0;
+
+	if(!stk && !str)
+		return NULL;	
+
+	if(str) {
+		i = 0;
+		stk = str;
+		len = strlen(str);
+	}
+
+	tmp = (i<len) ? stk+i : NULL;
+	for(; i<len ; i++) {
+		if(stk[i] == delim[0]) {
+			stk[i++] = 0;
+			break;
+		}
+	}
+
+	return tmp; 
+}
+
+// https://en.cppreference.com/w/c/string/byte/strrchr
+char *strrchr(const char *str, char ch)
+{
+	int i = 0, len = 0;
+	if(!str)
+		return NULL;
+
+	len = strlen(str);
+	for(i=len ; i>-1 ; i--) {
+		if(str[i]==ch)	
+			return str+i;			
+	}
+
+	return NULL;
+}
 
 // https://en.cppreference.com/w/c/string/byte/strchr
 char *strchr(const char *str, char ch)

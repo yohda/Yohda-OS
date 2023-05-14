@@ -4,6 +4,8 @@
 #include "Types.h"
 #include "debug.h"
 
+char *strtok(const char *str, const char *delim);
+char *strrchr(const char *str, char ch);
 char *strchr(const char *str, char ch);
 int strlen(const char* str);
 int strcmp(const char *s1, const char *s2);

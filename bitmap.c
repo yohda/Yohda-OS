@@ -23,7 +23,7 @@ int bitmap_alloc(struct bitmap *bmp, const u32 bit, const u32 size)
 	if(bit < 1 || size < 1)
 		return -1;
 
-	bmp->base = mm_alloc(bit*size, MM_KL);
+	bmp->base = mm_alloc((bit/32)*size, MM_KL);
 	if(!bmp->base)
 		return -1;
 
@@ -72,7 +72,7 @@ int bitmap_get_free(struct bitmap *bmp)
 		return -1;
 	
 	for(j=0 ; j<bit ; j++) {
-		if(*bits>>j & 0x1)
+		if(!(*bits>>j & 0x1))
 			break;
 	}
 

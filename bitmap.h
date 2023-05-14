@@ -14,8 +14,8 @@ struct bitmap {
 
 int bitmap_alloc(struct bitmap *bmp, const u32 bit, const u32 size);
 int bitmap_free();
-int bitmap_set();
-int bitmap_get_free();
+int bitmap_set(struct bitmap *bmp, u32 ost, bool f);
+int bitmap_get_free(struct bitmap *bmp);
 int bitmap_get_status();
 
 #endif
