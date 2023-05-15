@@ -1,10 +1,11 @@
 #ifndef _AHCI_H_
 #define _AHCI_H_
 
-#include "Types.h"
+#include "type.h"
 #include "file.h"
 #include "list.h"
 #include "bstree.h"
+#include "bitmap.h"
 
 // https://en.wikipedia.org/wiki/Long_filename
 // `The long filename system allows a maximum length of 255 UCS-2 characters including spaces and non-alphanumeric characters ...`
@@ -79,10 +80,10 @@ struct fat_sfn {
 	u16 crt_time;
 	u16 crt_date;
 	u16 lst_acc_date;
-	u16 fst_clus_hi;
+	u16 fst_clus_hi; // 20 21
 	u16 wrt_time;
 	u16 wrt_date;
-	u16 fst_clus_lo;
+	u16 fst_clus_lo; // 26 27
 	u32 file_size;
 }__attribute__((packed));
 
@@ -113,26 +114,38 @@ struct fat_common {
 
 struct fat_file {
 	u32 offset;
+	u32 ost;
 	u32 attr;
 	char name[FAT_LFN_MAX_LEN];
-
+	u8 crc; // checksum
 	u8 lfn;
 	u8 removed;
 	u32 clus_num;
 	u32 clus_chain[50];	
+	u32 *clus;
+	u32 size;
+	u32 drt_ost; // dirty offset
+	void *bp, *cp;
 };
 
 struct fat_dir {
-	u32 offset;
-	u32 attr;
-	char name[FAT_LFN_MAX_LEN];
-	
+	// A directory also is a file.
+	struct fat_file f;
+
+	// directory specified information	
 	u32 num;
 	struct fat_file *files;
 	struct bst_node node;
 
 	// Each directory has two root directory pointer. a one is base pointer to point a each root directory start address and the another is current pointer to point a location stored on current data. current pointer must be changed whenever data stored. 
-	void *rbp, *rcp;	
+	//void *rbp, *rcp;	
+};
+
+struct fat_region {
+	u32 clus;			// total cluster number per region
+	u32 frees; 			// free clusters number		
+	void *bp, *cp; 		// base pointer, current pointer
+	struct bitmap bit;
 };
 
 /*
@@ -183,6 +196,8 @@ struct fat32_region {
 */
 
 int fat_init(u64 *base);
-int fat_crt(const char *name);
+int fat_crt_file(const char *name);
+int fat_crt_dir(const char *name);
+int fat_sync();
 
 #endif
