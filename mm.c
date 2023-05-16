@@ -45,7 +45,7 @@ struct mm_manager {
 
 	// mem layout
 	struct memory_layout *ml;
-	struct list_head ml_list;
+	struct list_node ml_list;
 	u32 mem_num;
 
 	// memory info

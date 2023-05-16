@@ -5,41 +5,57 @@
 // Determining the prvious point of head in linked list is depending on each case. 
 // My opnion is that a head node points yourself. But, tail of head node does NULL.
 // NULL means the end of list.
-void list_init_head(struct list_head *head)
+void list_init_head(struct list_node *head)
 {
-	head->prev = head;
+	head->prev = NULL;
 	head->next = NULL;
 }
 
-void list_add_head(struct list_head *p, struct list_head *new)
+void list_add_head(struct list_node *head, struct list_node *new)
 {
-	if(p == NULL || new == NULL)
+	if(head == NULL || new == NULL)
 		return -EINVAL;
-
-	new->next = p;
-	new->prev = p->prev;
-
-	new = new->prev->next;
-	p->prev = new;
+	
+	if(head->next) {
+		new->prev = head;
+		new->next = head->next;
+		
+		head->next->prev = new;
+		head->next = new;
+	} else {
+		new->prev = head;
+		new->next = head;
+		
+		head->prev = new;
+		head->next = new;
+	}
 
 	return 0;
 }
 
-void list_add(struct list_head *p, struct list_head *new)
+void list_add(struct list_node *head, struct list_node *new)
 {
-	if(p == NULL || new == NULL)
+	if(head == NULL || new == NULL)
 		return -EINVAL;
 
-	new->next = p->next;	
-	new->prev = p;
+	if(head->next) {
+		new->prev = head->prev;
+		new->next = head;
 
-	p->next = new;
-	new = new->next->prev;
+		head->prev->next = new;
+		head->prev = new;	
+	} else {
+		new->prev = head;
+		new->next = head;	
+		
+		head->prev = new;
+		head->next = new;
+	}
 
 	return 0;
 }
 
-void list_del(struct list_head *head)
+void list_del(struct list_node *node)
 {
 
 }

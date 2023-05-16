@@ -1,13 +1,18 @@
 #ifndef __LIST_H__
 #define __LIST_H__
 
-struct list_head {
-	struct list_head *next, *prev;
+#define list_for_each(head, node) \
+	for (node=head->next ; node!=head ; node=node->next)
+
+struct list_node {
+	struct list_node *next, *prev;
 };
 
-void list_init_head(struct list_head *head);
-void list_add(struct list_head *p, struct list_head *new);
-void list_add_head(struct list_head *p, struct list_head *new);
+void list_init_node(struct list_node *node);
+void list_add(struct list_node *p, struct list_node *new);
+void list_add_node(struct list_node *p, struct list_node *new);
+void list_for_each_entry();
+void list_get_entry();
 void list_del();
 void list_sort();
 
