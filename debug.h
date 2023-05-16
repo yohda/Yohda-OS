@@ -10,7 +10,7 @@
 #define ahci_debug(fmt, ...) 
 #endif
 
-#define MM_DEBUGx
+#define MM_DEBUG
 #ifdef MM_DEBUG
 #define mm_debug(fmt, ...) kPrintf("[f:%s][l:%d]" fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
 #else

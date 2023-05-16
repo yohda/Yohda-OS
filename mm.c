@@ -177,7 +177,7 @@ int mm_init(u64 heap_size)
 		num[i] = (mm.heap_size / ll);
 		num[i] = (num[i] / mm.bitmap_size) + ((num[i] % mm.bitmap_size) ? 1 : 0) ;
 	
-		mm_debug("dep#%d, mem#0x%x, block-size#%d, num#%d\n", i, blocks[i], ll, num[i]);
+		//mm_debug("dep#%d, mem#0x%x, block-size#%d, num#%d\n", i, blocks[i], ll, num[i]);
 		ll *= 2;
 
 		blocks[i+1] = blocks[i] + num[i];
@@ -206,15 +206,12 @@ int mm_init(u64 heap_size)
 	mm.hdr_size = (mm.heap_size / mm.ll) * sizeof(struct mm_blk_hdr);
 	
 	mm_set_info("BUDDY BITMAPS HEADER", mm.hdr_base, mm.hdr_size);
-	mm_debug("hdr_base#0x%x, hdr_size#%d\n", mm.hdr_base, mm.hdr_size);
 
 	// heap base
 	mm.heap_base = (u32)(mm.hdr_base + mm.hdr_size);
 	//mm.heap_size += mm.heap_hd_size;
 
 	mm_set_info("KERNEL HEAP", mm.heap_base, mm.heap_size);
-
-	//mm_debug("mm.heap_size#0x%x\n", mm.heap_size);
 
 #ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
 	void *a1 = mm_alloc(15400, MM_KL);
@@ -387,7 +384,6 @@ static bool mm_is_used(u32 ord, u32 ost)
 static bool mm_is_bud_used(u32 ord, u32 ost)
 {
 	u32 bud_ost = ost + ((ost % 2) ? -1 : 1);
-	mm_debug("bud ord#%d, bud ost#%d\n", ord, bud_ost);
 	
 	return mm_is_used(ord, bud_ost);
 }
@@ -431,9 +427,7 @@ static int mm_chk_parent(u32 ord, u32 ost, bool f, bool (*mm_is_stop)(u8, u32, b
 	}
 
 	for(i = ord+1, n = ost/2; i < mm.dep ; i++, n = n/2) {
-		mm_debug("ord#%d, ost#%d\n", i, n);	
 		if(mm_is_stop(i, n, f)) {
-			mm_debug("already used ord#%d block#%d\n", i, n);			
 			return 0;
 		}
 	}
@@ -538,7 +532,6 @@ void* mm_alloc(u32 size, u32 flag)
 		return NULL;
 	}
 
-	mm_debug("===========Start alloc===========\n");
 	chunk = mm_rndup(size);
 	if(chunk < mm.ll)
 		return NULL;	
@@ -548,10 +541,10 @@ void* mm_alloc(u32 size, u32 flag)
 		return NULL;
 
 	ost = mm_find_free(ord);
-	if(ost < 0)
+	if(ost < 0) {
+		mm_debug("Memory allocation failed#%d\n", ost);	
 		return NULL;
-	
-	mm_debug("ord#%d, ost#%d\n", ord, ost)
+	}
 	
 	addr = mm_encode(chunk, ost, ord);
 	if(!addr)
@@ -583,14 +576,10 @@ void mm_free(void *addr)
 	chunk = mm_get_chunk(hdr->dep);
 	chunk_ost = ((u32)addr - mm.heap_base);
 	ost = chunk_ost/ chunk;
-	
-	mm_debug("===========Start free===========\n");
-	mm_debug("ord#%d, ost#%d\n", ord, ost)
 
 	mm_set_bit(ord, ost, MM_BUD_FREE);
 	mm_chk_childs(ord, ost, MM_BUD_FREE);
 	if(!mm_is_bud_used(ord, ost)) {
-		mm_debug("free chunk#%d ost#%d\n", chunk, ost);
 		mm_chk_parent(ord, ost, MM_BUD_FREE, mm_merge);
 	}
 }

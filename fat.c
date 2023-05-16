@@ -36,7 +36,13 @@ bool sfn_inval_tbl[128] = { 0x00, };
 
 /* Default size of a directory */
 #define FAT_32_DEF_DIR_SIZE 		0x1000 // 4KB(same as linux)
-#define FAT_32_ROOT_DIR_CLUS_NUM 	16
+
+/* FAT Region */
+#define FAT_ENTRY_BYTE 				4
+
+/* Root directory cluster number */
+#define FAT_ROOT_DIR_CLUS 			8
+
 enum {
 	TYPE_FAT12 = 0,
 	TYPE_FAT16,
@@ -85,12 +91,13 @@ struct fat_info {
 
 // 각 디렉토리는 클러스터 사이즈만큼의 루트 디렉토리 영역에 메모리를 할당받는다. 만약, 특정 디렉토리가 할당받은 영역을 초과하면 아래의 rcp가 가리키는 곳에 새롭게 클러스터 사이즈만큼 영역을 할당 받는다.
 struct fat_mem {
-	struct fat_dir cd; 		// current directory
+	struct fat_dir *cd; 		// current directory
 
 	// Cache
 	struct bitmap cc;		// Cache bitmap  
 	struct bitmap drt;		// Cache dirty check
-		
+	
+	struct fat_region r;	// directory region	
 	struct fat_region f;	// fat region 
 	struct fat_region c; 	// cluster region
 };
@@ -100,21 +107,48 @@ struct fat_info fat;
 struct fat_dir root;
 struct stack stk;
 
+static _fat_read_dir(int ost, int n, void *from)
+{
+	if(!from)
+		return -1;
+
+	// If ost is -1, this is access of system reserved cluster.
+	if(ost < -2 || n < 1)
+		return -2;
+
+	return ahci_read(fat.rfs + ost, n, from);
+}
+
 // This function reads the a cluster from secondary storage. 
 // The first argument is a offset from base address of root directory. 
 // The second argument is a size byte unit. So, it was converted into sector unit.
 // The third argument is a pointer to receive data from secondary storage.
-static int fat_read_rr(u32 ost, void *from)
+static int fat_read_dir(int ost, void *from)
 {
-	fat_debug("fat.cfs#%d , ost#%d\n", fat.cfs, ost);	
-	return ahci_read(fat.cfs + ost, fat.spc, from);
+	if(!from)
+		return -1;
+
+	// If ost is -1, this is access of system reserved cluster.
+	if(ost < -2)
+		return -2;
+
+	return _fat_read_dir(ost, fat.spc, from);
+	//return ahci_read(fat.rfs + ost, fat.spc, from);
 }
 
 // This function writes the a cluster to secondary storage. 
-static int fat_write_rr(u32 ost, void *to)
+static int fat_write_dir(int ost, void *to)
 {	
-	fat_debug("start#%d\n, count#%d\n", fat.cfs + ost, fat.spc);	
-	return ahci_write(fat.cfs + ost, fat.spc, to);
+	//fat_debug("start#%d, count#%d\n", fat.rfs + ost, fat.spc);	
+	
+	if(!to)
+		return -1;
+
+	// If ost is -1, this is access of system reserved cluster.
+	if(ost < -2)
+		return -2;
+
+	return ahci_write(fat.rfs + ost, fat.spc, to);
 }
 
 int fat_print_fat(void)
@@ -143,7 +177,7 @@ int fat_print_fat(void)
 
 int fat_init(u64 *fat_base)
 {
-	int i;
+	int i, err = -1;
 	struct fat_reserved_sector_region *reserved;
 	struct fat_bios_param_blk bpb;
 	struct fat_ext_bios_param_blk32 ext_bpb;
@@ -161,25 +195,29 @@ int fat_init(u64 *fat_base)
 		return 0;
 
 	// FAT
-	fat.ffs = bpb.reserved_sector_count;
+	// After reserved two clusters, a next cluster is yohdaOS system cluster.
+	fat.ffs = bpb.reserved_sector_count;	
 	fat.fsn = bpb.fat16_region_size ? bpb.fat16_region_size : ext_bpb.fat32_region_size;
 	fat.fsn = fat.fsn * bpb.fat_num;
 
 	// DATA
-	fat.rsn = ((bpb.root_entry_count * 32) + (bpb.bps - 1)) / bpb.bps;
-	fat.dfs = fat.ffs + fat.fsn + fat.rsn; 
-	fat.cfs = fat.dfs + ((fat.spc) * 2);	
+	fat.rsn = (((bpb.root_entry_count * 32) + (bpb.bps - 1)) / bpb.bps) + (fat.spc * FAT_ROOT_DIR_CLUS);
+	fat.dfs = fat.ffs + fat.fsn; 
+	fat.cfs = fat.dfs + ((fat.spc) * 2) + 1; // After reserved two clusters, a next cluster is yohdaOS system cluster.	
 
 	// Root Directory
-	if(fat.type == TYPE_FAT32)
+	if(fat.type == TYPE_FAT32) {
 		fat.rfs = ((ext_bpb.root_cluster - 2) * bpb.spc) + fat.cfs;
+		fat.cfs += fat.spc * FAT_ROOT_DIR_CLUS; // After reserved two clusters, a next cluster is yohdaOS system cluster.	
+	}
 
 	fat.dsn = fat.ts - fat.dfs;	
-	fat.csn = fat.dsn - ((fat.spc) * 2);
+	fat.csn = fat.dsn - (((fat.spc) * 2) + 1 + (fat.spc * FAT_ROOT_DIR_CLUS)); // In FAT32, two cluster are reserved and in yohdaOS, a one cluster after these is system cluster. 
 	fat.tc = fat.dsn / fat.spc;
-	
-	fmm.c.clus = fat.csn / fat.spc;
-	fmm.c.frees = fmm.c.clus;
+
+	// Re-calculate FAT region clusters because the above fat calculation is just for convenient calculation about data and root directory region. So, from here except back FAT region.
+	fat.fsn /= bpb.fat_num;
+
 
 	// `Microsoft Word - FAT32 Spec _SDA Contribution_.doc` "6.5 Directory creation"
 	/*
@@ -194,27 +232,64 @@ int fat_init(u64 *fat_base)
 
 	// lfn supported
 	fat.lfn = true;
-	
+
+	// Each region(FAT, Root Directory, DATA) entry and cluster numbers.
+	fmm.c.nums = fat.csn / fat.spc;
+	fmm.c.frees = fmm.c.nums;
+
+	fmm.r.nums = (fat.rsn*fat.bps)/FAT_ENTRY_SIZE;
+	fmm.r.frees = fmm.r.nums;
+
+	fmm.f.nums = (fat.fsn*fat.bps)/FAT_ENTRY_BYTE;
+	fmm.r.frees = fmm.f.nums;
+
 	/* bitmap initialize */ 
 	// There is exception case about remainder... you must to check bitmap leaks. 
-	bitmap_alloc(&fmm.f.bit, 32, ((fat.fsn/fat.spc)+31)/32);
-	bitmap_alloc(&fmm.c.bit, 32, ((fat.csn/fat.spc)+31)/32);
+	bitmap_alloc(&fmm.f.bit, 32, (fmm.f.nums+31)/32);
+	bitmap_alloc(&fmm.r.bit, 32, (fmm.r.nums+31)/32);
+	bitmap_alloc(&fmm.c.bit, 32, (fmm.c.nums+31)/32);
 
-	//char *bff[fat.ds];
+	fat_debug("bitmap %d, %d, %d\n", (((fat.fsn*fat.bps)/FAT_ENTRY_BYTE)+31)/32, (((fat.rsn*fat.bps)/FAT_ENTRY_SIZE)+31)/32, ((fat.csn/fat.spc)+31)/32);
+
+	fmm.r.bp = mm_alloc(FAT_ROOT_DIR_CLUS*fat.ds, MM_KL);
+	if(!fmm.r.bp)
+		return -10;	
+
+	memset(fmm.r.bp, 0, sizeof(FAT_ROOT_DIR_CLUS*fat.ds));
+	//char *bff[FAT_ROOT_DIR_CLUS*fat.ds];
 	//memset(bff, fat.ds, 0);
-	//fat_write_rr(0, bff);
+	//fat_write_dir(2, bff);
 
 	/* Initialize rootfs */
-	fat_init_rootfs();
-	
+	err = fat_init_rootfs();
+	if(err < 0) {
+		fat_debug("Failed to initialize root filesystem#%d\n", err);
+		return err;
+	}
 	/* Print FAT32 information  */
 	//fat_print_fat();
 }
 
-static int fat_crt_file_tree()
+static int fat_crt_dir_tree(const struct bst_node *root)
 {
+	struct fat_dir *dirs;
+	int err = -1, size = 0;
 
-			
+	if(!fmm.r.bp)
+		return -1;
+	
+	size = (FAT_ROOT_DIR_CLUS*fat.ds) / FAT_ENTRY_SIZE;
+	dirs = mm_alloc(sizeof(struct fat_dir)*size, MM_KL);
+	if(!dirs)
+		return -4;	
+	
+	err = _fat_read_dir(0, FAT_ROOT_DIR_CLUS*fat.spc, fmm.r.bp);		
+	if(err < 0)
+		return -8;	
+
+	//fat_conv_e2f();
+
+	return 0;	
 }
 
 static int fat_search_comp(struct bst_node *node, void *key)
@@ -250,13 +325,12 @@ static int fat_get_ost(u8 *ent)
 		return NULL;
 	
 	is_lfn = ((*ent) & FAT_LAST_LONG_ENTRY) == FAT_LAST_LONG_ENTRY;
-	//return is_lfn ? ((*ent) & 0xBF) + 1 : 1;
 	return is_lfn ? ((*ent) & 0xBF) : 1;
 }
 
 static int fat_get_entries(const int clu)
 {
-	int n = 0, ost = 0;
+	int n = 0, ost = 0, err = -1;
 	u8 *ent = NULL;
 
 	if(clu < 0)
@@ -267,7 +341,9 @@ static int fat_get_entries(const int clu)
 		return -2;
 
 	memset(ent, 0, fat.ds);
-	fat_read_rr(clu, ent);	
+	err = fat_read_dir(clu, ent);	
+	if(err)
+		return -3;
 
 	for( ; *ent ; ent+=((ost+1)*FAT_ENTRY_SIZE)) {
 		ost = fat_get_ost(ent);
@@ -279,42 +355,24 @@ static int fat_get_entries(const int clu)
 	}
 
 	mm_free(ent);
+	
 	return n;
-}
-
-int fat_init_rootfs()
-{
-	struct fat_files *files = NULL;
-	int n = 0;
-
-	if(!stack_init(&stk, sizeof(struct fat_dir)*200))
-		return -1;
-
-	n = fat_get_entries(0);
-	if(n < 0)
-		return -1;
-
-	//fat_crt_dir("/");
-
-	bst_root_init(&root.node);
-	strncpy(root.f.name, "/", 1);
-	root.f.clus = mm_alloc(sizeof(u32), MM_KL);
-	if(!root.f.clus)
-		return -1;
-
-	root.f.clus[0] = 0;
-
-	fat_parse_entry(root.f.clus[0], files);
 }
 
 void fat_show_dir()
 {
+	struct list_node *node;
+	struct fat_file *file;
 	int i;
+
+	msg("Total files number#%d\n", fmm.cd->num);
+	list_for_each(&fmm.cd->fl, node) {
+		file = container_of(node, struct fat_file, li);
+		if(file->attr == 0x14)
+			continue;	
 	
-	msg("Total files number#%d\n", fmm.cd.num);
-	for(i=0 ; i < fmm.cd.num ;i++) {
-		msg("%s ", fmm.cd.files[i].name);
-	}	
+		msg("%s ", file->name);
+	}
 	msg("\n");
 }
 
@@ -326,6 +384,18 @@ void fat_get_cd()
 static int fat_get_fn()
 {
 
+}
+
+int _fat_set_dir(struct fat_dir *dir)
+{
+	int i = 0;
+	
+	if(!dir)
+		return -1;
+
+	fmm.cd = dir;
+	
+	return 0;
 }
 
 int fat_set_dir(const char *path)
@@ -343,61 +413,6 @@ int fat_set_dir(const char *path)
 	len = strlen(path);
 	if(len < 1)
 		return -2;	
-
-	
-
-	// rootfs offset is 0 from root dir.
-	//fat_read_rr(ost, fat.spc, rr, 0);
-	tmp = rr;
-	for(i = 0, cnt = 0 ; ; cnt = 0) {	
-		// condition of exiting root directory trasvel
-		if(tmp[11] == 0x00)
-			break;
-
-		files[i].offset = tmp - rr;  
-		//fat_debug("0x%x, 0x%x\n", (u16)tmp, files[i].offset);
-		if(tmp[11] == FAT_ATTR_LFN) {
-			// LFN
-			files[i].lfn = 1;
-			cnt = (tmp[0] & 0xBF);
-			
-			if(!FAT_FREE((tmp+(cnt*32))[0])) {
-				name = tmp + ((cnt-1)*32);
-				for(j = 1; j <= cnt; j++) {
-					name = tmp + ((cnt-j)*32);
- 					
-					for(k = 0 ; k < F32_LFN_LEN ; k++) {
-						if((name[lfn_ost[k]] == 0xFF) && (name[lfn_ost[k+1]] == 0xFF))
-							break;
-
-						files[i].name[((j-1)*F32_LFN_LEN)+k] = name[lfn_ost[k]];
-					}
-				}
-				//fat_debug("#%s\n", files[i].name);
-				i++;
-			}
-		} else {
-			// SFN
-			files[i].lfn = 0;
-			if(!FAT_FREE(tmp[0])) {
-				for(j = 0 ; j < 11 ; j++) {
-					files[i].name[j] = tmp[i];	
-				}
-				fat_debug("#%s\n", files[i].name);
-				i++;
-			}
-		}
-	
-		tmp += ((cnt+1) * FAT_ENTRY_SIZE); // SFN default size 1
-	}
-
-	fmm.cd.num = i;
-	fmm.cd.files = mm_alloc(sizeof(struct fat_file) * i, MM_KL);
-	for(i=0 ; i < fmm.cd.num; i++) {
-		memcpy(&(fmm.cd.files[i]), &files[i], sizeof(struct fat_file));		
-	}
-
-	fat_debug("rootfs file number#%d\n", i);
 	
 	return 0;
 }
@@ -606,24 +621,26 @@ static int _fat_crt_sfn(const char *name, struct fat_sfn *sfn)
 	return 0;
 }
 
-static int fat_vali_sfn(char *name)
+static int fat_vali_sfn(const char *name)
 {
 	int i;
-	struct fat_file *fs = fmm.cd.files;
+	//struct fat_file *fs = fmm.cd->files;
+
+	if(!name)
+		return -1;
 /*	
-	for(i=0; i < fmm.cd.num ; i++) {
+	for(i=0; i < fmm.cd->num ; i++) {
 		if(!strcmp(fs[i].name, name)) {
 			fat_debug("efef\n")
 			return -1; // There is already file name.
 		}
 	}
-*/
 	
 	if(FAT_INVAL_SFN_FST(*name)) {
-		fat_debug("SFN Invalid name#%s\n", name);
+		fat_debug("SFN Invalid first name#(%d)\n", *name);
 		return -1; 
 	}
-
+*/
 	for(i=0 ; name[i] ; i++) {
 		if(sfn_inval_tbl[name[i]] && 0) {
 			fat_debug("SFN Invalid character index#%d\n", i);
@@ -778,7 +795,7 @@ static int fat_add_d2p(char *path)
 	if(!tmp)
 		return 0;
 
-	//strcat(fmm.cd.f.name, path);
+	//strcat(fmm.cd->f.name, path);
 
 	return 0;
 }
@@ -786,9 +803,11 @@ static int fat_add_d2p(char *path)
 /*
  * This function add a file to directory. 
  * */
-static int fat_add_f2d(void *rde, int n)
+static int fat_add_f2d(struct fat_dir *dir, const struct fat_file *file)
 {
-	struct fat_dir dir;
+	struct fat_dir dir1;
+	void *rde;
+	int n;
 	if(!rde || n<1)
 		return -1;
 /*
@@ -853,7 +872,7 @@ static int fat_parse_sfn(u8 *base, char *name)
 }
 
 // LFN이 있으면 SFN은 필요가 없다. LFN이 없을 때만, SFN을 사용한다.
-static void fat_parse_name(u8 *base, int ost, struct fat_file *file)
+static int fat_parse_name(u8 *base, int ost, struct fat_file *file)
 {
 	if(!base || !file)
 		return NULL;
@@ -904,12 +923,12 @@ static int fat_conv_f2e(void *de, struct fat_file *file)
 	memset(lfns, 0, sizeof(lfns));
 	memset(&sfn, 0, sizeof(struct fat_sfn));
 	err = fat_crt_sfn(file, &sfn);
-	if(err)
+	if(err < 0)
 		return -2;
 
 	/* calcuate a checksum */
 	err = fat_crt_lfn(file->name, file->crc, &lfns);
-	if(err)
+	if(err < 0)
 		return -3;
 
 	/* 
@@ -924,32 +943,35 @@ static int fat_conv_f2e(void *de, struct fat_file *file)
 	if(err)
 		return -4;
 
-	//mdebug(de, 64);
-
 	return lfn_num+1;
 }
 
 int fat_sync()
 {
-	int err = -1, i = 0, ost = 0;
+	struct fat_file *file;
+	struct list_node *node;
+	int err = -1, ost = 0;
 	void *de, *base;		
 	
-	de = mm_alloc(fat.ds, MM_KL);
+	de = mm_alloc(fat.ds*4, MM_KL);
 	if(!de)
 		return -1;
 
 	base = de;
 	memset(de, 0, fat.ds);
-	for(i=0 ; i<fmm.cd.num ; i++) {
-		ost = fat_conv_f2e(de, &(fmm.cd.files[i]));
+	list_for_each(&fmm.cd->fl, node) {
+		file = container_of(node, struct fat_file, li);
+		ost = fat_conv_f2e(de, file);
 		if(ost < 1)
 			return -1;
 
 		de+=(ost*FAT_ENTRY_SIZE);
 	}
 
-	mdebug(base, 128);
-	fat_write_rr(0, base);
+	err = fat_write_dir(0, base);
+	if(err)
+		return -2;
+
 	mm_free(base);
 
 	return 0;
@@ -973,7 +995,7 @@ static int fat_add_e2d(const void *entry, const char *name)
 }
 
 // This function returns offset of root directory from after added file.
-static int fat_crt(const char *path, struct fat_file *file)
+static int fat_crt(const char *path, struct fat_file *file, struct fat_region *rgn)
 {
 	int err, crc, clus, len = strlen(path)+1;
 	char *dir = NULL, *name = NULL;
@@ -993,7 +1015,7 @@ static int fat_crt(const char *path, struct fat_file *file)
 	crc = fat_calc_crc((u8 *)name);
 
 	/* allocate clusters */
-	clus = fat_alloc_clus(&fmm.c);
+	clus = fat_alloc_clus(rgn);
 	if(clus < 0)
 		return -1;
 
@@ -1007,8 +1029,8 @@ static int fat_crt(const char *path, struct fat_file *file)
 
 	memcpy(file->name, name, strlen(name));
 
-	memcpy(fmm.cd.files + fmm.cd.num, file, sizeof(struct fat_file));
-	(fmm.cd.num)++;
+	list_add(&fmm.cd->fl, &file->li);
+	(fmm.cd->num)++;
 
 	return clus;
 }
@@ -1020,14 +1042,14 @@ int fat_crt_file(const char *path)
 	memset(&file, 0, sizeof(struct fat_file));
 
 	file.attr |= FAT_ATTR_ARCHIVE;
-	fat_crt(path, &file);	
+	fat_crt(path, &file, &fmm.c);	
 	
 	return 0;
 }
 
-int fat_crt_dir(const char *path)
+static int _fat_crt_dir(const char *path, struct fat_dir *dir, const u8 attr)
 {
-	struct fat_dir *dir = NULL;
+	struct fat_dir *tmp = NULL;
 	int clus = 0; // root directory offset
 
 	if(!path)
@@ -1037,28 +1059,34 @@ int fat_crt_dir(const char *path)
 	 * Add a character `/` to The end of directory path. 
  	* */
 
-	dir = mm_alloc(sizeof(struct fat_dir), MM_KL);
-	if(!dir)
-		return -3;
+	tmp = mm_alloc(sizeof(struct fat_dir), MM_KL);
+	if(!tmp)
+		return -2;
 
-	memset(dir, 0, sizeof(struct fat_dir));
+	memset(tmp, 0, sizeof(struct fat_dir));
 
 	/* 
 	 * `Microsoft Word - FAT32 Spec _SDA Contribution_.doc` "6.5 Directory creation"
 	 * The `ATTR_DIRECTORY` bit must be set to 0
 	 * The `DIR_FileSize` must be set to 0
 	*/ 
-	(dir->f).attr |= FAT_ATTR_DIRECTORY;
-	(dir->f).size = 0;
+	(tmp->f).attr = FAT_ATTR_DIRECTORY;
+	(tmp->f).attr |= attr;
+	(tmp->f).size = 0;
 
-	clus = fat_crt(path, &dir->f);
+	clus = fat_crt(path, &tmp->f, &fmm.r);
 	if(clus < 0)
 		return -5;
 
-	/* Add a new directory into directory tree */
-	bst_insert(&root.node, &dir->node, fat_insert_comp); 
+	if(dir)
+		memcpy(dir, tmp, sizeof(struct fat_dir));
 
 	return 0;
+}
+
+int fat_crt_dir(const char *path)
+{
+	_fat_crt_dir(path, NULL, 0);
 }
 
 int fat_write()
@@ -1071,23 +1099,13 @@ int _fat_read(const char *path)
 			
 }
 
-/*
- * This function reads a directory entry data from secodary storage and parse it. 
- * The time to call this function is just on `cd command`.
- */ 
-int fat_parse_entry(const u32 clus)
+static int fat_parse_entry(const void* base, struct fat_file *files)
 {
-	int ost = 0, n = 0;
-	u8 *base, *ent;
-	struct fat_file files[FAT_LFN_MAX_LEN];
+	int err = -1, ost = 0, n = 0;
+	u8 *ent = NULL;
 
-	base = mm_alloc(fat.ds, MM_KL);
-	if(!base)
+	if(!base || !files)
 		return -1;
-
-	memset(files, 0, sizeof(files));
-	memset(base, 0, sizeof(fat.ds));
-	fat_read_rr(clus, base);
 
 	for(ent=base ; *ent ; ent+=((ost+1)*FAT_ENTRY_SIZE)) {
 		ost = fat_get_ost(ent);
@@ -1101,78 +1119,87 @@ int fat_parse_entry(const u32 clus)
 		fat_debug("n#%d, addr#0x%x, name#%s attr#0x%x, clus#%d\n", n, ent, files[n].name, files[n].attr, files[n].clus[0]);
 		n++;	
 	}
+	
+	return n;
+}
+/*
+ * This function reads a directory entry data from secodary storage and parse it. 
+ * The time to call this function is just on `cd command`.
+ */ 
+int fat_parse_dir(struct fat_dir *dir)
+{
+	struct fat_file tmps[FAT_LFN_MAX_LEN];
+	int err = -1, i = 0;
+	u8 *base = NULL;
 
-	fmm.cd.num = n;
-	fmm.cd.files = mm_alloc(sizeof(struct fat_file)*FAT_LFN_MAX_LEN, MM_KL);
+	if(!dir)
+		return -1;
 
-	memset(fmm.cd.files, 0, sizeof(struct fat_file)*FAT_LFN_MAX_LEN);
-	memcpy(fmm.cd.files, files, sizeof(struct fat_file)*n);	
-	/*
-	root_dir_secs = fat.rsn;
-	root_dir_bytes = root_dir_secs * fat.bps;
-		
-	err = fat_read_rr(base_root_dir);
+	base = mm_alloc(fat.ds, MM_KL);
+	if(!base)
+		return -2;
+
+	memset(tmps, 0, sizeof(tmps));
+	memset(base, 0, sizeof(fat.ds));
+	err = fat_read_dir(dir->f.clus[0], base);
 	if(err < 0)
 		return err;
 
-	fat_crt(0xff, "eef", 3);
-	while(1){
-		offset = 1; // Added Default SFN Size
-		fat_debug("file->sde.name#%s\n", base_root_dir->name1);
-		fat_debug("adress#0x%x\n", base_root_dir);
+	err = fat_parse_entry(base, tmps);
+	if(err < 0)
+		return -10;
 
-		
-
-		for(i = 0 ; i < n; i+=2)
-			if(!base_root_dir->name1[0])
-				base_root_dir->name
-		;	
-		while(1) {
-			
-		}
-			
-		if(base_root_dir->attr == FAT_ATTR_LFN) {
-			// LFN	
-			fat_debug("ord#0x%x\n", base_root_dir->ord);
-			offset += (base_root_dir->ord & 0xBF);
-			base_root_dir += offset;
-		} else if (base_root_dir->attr == 0x00){
-			fat_debug("Over!!!#0x%x\n", base_root_dir);
-			break;
-		}
-	}
-*/
-	//fat_debug("file->lde.ord#0x%x\n", file->lde.ord);
-	//fat_debug("file->lde.attr#0x%x\n", file->lde.attr);
-	//fat_debug("file->sde.name#%s\n", file->lde.sde.name);
-	//fat_debug("file->sde.attr#%x\n", file->lde.sde.attr);
-	//fat_debug("file->attr#0x%x\n", file->lde.attr);
+	dir->num = err;
+	for(i=0 ; i<dir->num ; i++)
+		list_add(&dir->fl, tmps+i);
 	
-	//fat_debug("i#0x%x\n", *i);
-	//fat_debug("i#0x%x\n", *i);
+	return 0;
+}
 
-	//entry = (struct fat_directory_entry *)entry;	
-	//fat_debug("s:%s\n", entry->name);
-	/*
-	while(root_dir_bytes) {
-			
-		if(!kMemCmp(entry->name, name, 11))
-			break;	
+int fat_init_rootfs()
+{
+	void *ent;
+	int err = -1;
 
-		root_dir_bytes -= sizeof(struct fat_directory_entry);	
-		entry += 1;
-	}
+	memset(&root, 0, sizeof(struct fat_dir));
+	err = _fat_set_dir(&root); // set current directory to root.
+	if(err < 0)
+		return -1;
+	
+	if(!stack_init(&stk, sizeof(struct fat_dir)*200))
+		return -3;
+	
+	ent = mm_alloc(fat.ds, MM_KL);
+	if(!ent)
+		return -7;
 
-	if(!root_dir_bytes)
-		return -ENOENT;
- 	
-	clu_num = (entry->start_clu_num_h << 16) | entry->start_clu_num_l;
-	if(fat_search_clus_chains(clu_num))
-	*/
+	err = _fat_crt_dir("$", &root, FAT_ATTR_SYSTEM);
+	if(err)
+		return -10;
 
+	//bst_root_init(&root.node);
+
+	err = fat_conv_f2e(ent, &root.f);
+	if(err < 0)
+		return -13;
+
+	err = fat_write_dir(-1, ent);
+	if(err < 0)
+		return -15;
+
+	mm_free(ent);	
+
+	list_init_head(&root.fl);
+	err = fat_parse_dir(&root); // parse root directory 
+	if(err < 0)
+		return -21;
+
+	//fat_crt_dir_tree(&root.node);
+	
 	return 0;
 }
 
 int fat_remove(struct fat_file *file)
 {
+
 }

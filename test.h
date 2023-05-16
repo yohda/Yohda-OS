@@ -20,5 +20,6 @@ struct list_test {
 
 void list_test_add();
 void list_test_for();
+void list_test_empty_list_for();
 
 #endif

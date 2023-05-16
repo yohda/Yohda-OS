@@ -113,7 +113,7 @@ struct fat_common {
 };
 
 struct fat_file {
-	u32 offset;
+	struct list_node li;	
 	u32 ost;
 	u32 attr;
 	char name[FAT_LFN_MAX_LEN];
@@ -134,7 +134,7 @@ struct fat_dir {
 
 	// directory specified information	
 	u32 num;
-	struct fat_file *files;
+	struct list_node fl;
 	struct bst_node node;
 
 	// Each directory has two root directory pointer. a one is base pointer to point a each root directory start address and the another is current pointer to point a location stored on current data. current pointer must be changed whenever data stored. 
@@ -142,7 +142,7 @@ struct fat_dir {
 };
 
 struct fat_region {
-	u32 clus;			// total cluster number per region
+	u32 nums;			// total cluster and entry number per region
 	u32 frees; 			// free clusters number		
 	void *bp, *cp; 		// base pointer, current pointer
 	struct bitmap bit;

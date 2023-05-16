@@ -60,6 +60,19 @@ void stack_test_001()
 	//stack_init(&tmp, 128);
 }
 
+void list_test_empty_list_for()
+{
+	struct list_test root;
+	//struct list_node *head;
+	struct list_node *test = NULL;
+	list_init_head(&root.list);
+
+	struct list_test tmp1;
+	list_for_each(&root.list, test) {
+		debug("ef\n");
+	}
+}
+
 void list_test_add()
 {
 	struct list_node *head;
@@ -99,9 +112,4 @@ void list_test_add()
 		temp = container_of(aaa, struct list_test, list);
 		debug("0x%d\n", temp->a);	
 	};
-}
-
-void list_test_for()
-{
-
 }
