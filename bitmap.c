@@ -39,9 +39,12 @@ int bitmap_set(struct bitmap *bmp, u32 ost, bool f)
 	int i = 0, n = 0, bit = 0;
 	u32 *bits;
 
-	if(!bmp || !bmp->base)
+	if(!bmp || !bmp->base) {
+		debug("");
 		return -1;
+	}
 
+	bits = (u32 *)bmp->base;
 	bit = bmp->bit;
 
 	if(f) {
@@ -56,8 +59,10 @@ int bitmap_get_free(struct bitmap *bmp)
 	int i = 0, j = 0, n = 0, bit = 0;
 	u32 *bits;
 
-	if(!bmp || !bmp->base)
+	if(!bmp || !bmp->base) {
+		debug("");
 		return -1;
+	}
 
 	bits = (u32 *)bmp->base;
 	bit = bmp->bit;
@@ -68,8 +73,10 @@ int bitmap_get_free(struct bitmap *bmp)
 			break;
 	}
 
-	if(i == n) 
-		return -1;
+	if(i == n) {
+		debug("");
+		return -4;
+	}
 	
 	for(j=0 ; j<bit ; j++) {
 		if(!(*bits>>j & 0x1))
