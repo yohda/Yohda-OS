@@ -11,10 +11,10 @@ void list_init_head(struct list_node *head)
 	head->next = NULL;
 }
 
-void list_add_head(struct list_node *head, struct list_node *new)
+struct list_node *list_add_head(struct list_node *head, struct list_node *new)
 {
 	if(head == NULL || new == NULL)
-		return -EINVAL;
+		return NULL;
 	
 	if(head->next) {
 		new->prev = head;
@@ -30,13 +30,13 @@ void list_add_head(struct list_node *head, struct list_node *new)
 		head->next = new;
 	}
 
-	return 0;
+	return new;
 }
 
-void list_add(struct list_node *head, struct list_node *new)
+struct list_node *list_add(struct list_node *head, struct list_node *new)
 {
 	if(head == NULL || new == NULL)
-		return -EINVAL;
+		return NULL;
 
 	if(head->next) {
 		new->prev = head->prev;
@@ -52,7 +52,7 @@ void list_add(struct list_node *head, struct list_node *new)
 		head->next = new;
 	}
 
-	return 0;
+	return new;
 }
 
 void list_del(struct list_node *node)

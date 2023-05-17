@@ -122,7 +122,7 @@ struct fat_file {
 	u8 removed;
 	u32 clus_num;
 	u32 clus_chain[50];	
-	u32 *clus;
+	int *clus;
 	u32 size;
 	u32 drt_ost; // dirty offset
 	void *bp, *cp;

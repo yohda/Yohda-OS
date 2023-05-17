@@ -9,8 +9,8 @@ struct list_node {
 };
 
 void list_init_head(struct list_node *head);
-void list_add_head(struct list_node *head, struct list_node *new);
-void list_add(struct list_node *head, struct list_node *new);
+struct list_node *list_add_head(struct list_node *head, struct list_node *new);
+struct list_node *list_add(struct list_node *head, struct list_node *new);
 void list_del();
 void list_sort();
 

@@ -120,11 +120,16 @@ void *memset(void *dst, int ch, int cnt)
 // https://en.cppreference.com/w/c/string/byte/memcpy
 void *memcpy(void *dst, const void *src, int cnt)
 {
-	int n = cnt;
+	int i = 0;
+	
+	if(!dst || !src)
+		return NULL;
 
-	while(n--){
-		*(((u8 *)dst)+n) = *(((u8 *)src)+n);
-	}
+	if(cnt < 1)
+		return NULL;
+	
+	for(i=0 ; i<cnt ; i++)
+		*(((u8 *)dst)+i) = *(((u8 *)src)+i);
 
 	return dst;
 }
