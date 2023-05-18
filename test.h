@@ -8,6 +8,7 @@
 
 #include "type.h"
 #include "list.h"
+#include "bstree.h"
 
 void string_test_strtok();
 void stack_test_001();
@@ -16,6 +17,12 @@ struct list_test {
 	int a;
 	int b;
 	struct list_node list;
+};
+
+struct bst_test {
+	int dummy;
+	char name[64];
+	struct bst_node node;
 };
 
 void list_test_add();

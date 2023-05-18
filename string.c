@@ -1,5 +1,6 @@
 #include "string.h"
 #include "mm.h"
+#include "limit.h"
 
 // https://en.cppreference.com/w/c/string/byte/strtok
 char *strtok(const char *str, const char *delim)
@@ -62,24 +63,35 @@ char *strchr(const char *str, char ch)
 }
 
 // https://en.cppreference.com/w/c/string/byte/strlen
+// strlen is based on NULL-terminaed string. If you passed the string withut NULL-terminated, it happended the overflow and, it`s the shame that  there is no way to decide to exit, So, you must pass the NULL-terminated string.
 int strlen(const char* str)
 {
-	int n = 0;
+	int n = 0, i = 0;
 	if(!str)
 		return 0;
 
-	while(str[n])
+	for(i=0 ; str[n]&&(i<=INT_MAX); i++)
 		n++;
 
-	return n;
+	return (n != INT_MAX) ? n : 0;
 }
 
 // https://en.cppreference.com/w/c/string/byte/strncpy
+// In strncpy, it is very important to determine length for copy src to dst.
+// As you know, if cnt is greater than length of dst, that is overflow. So, the point is that cnt must be equal to less than length of dst.
+// But, the possibility about length-dst of zero is present. 
 char *strncpy(char *dst, const char *src, int cnt)
 {
-	int i;
+	int i = 0 , len = 0;
 
-	for(i=0 ; i<cnt ; i++) {
+	if(!dst || !src)
+		return NULL;
+
+	if(cnt < 1)
+		return NULL;
+	
+	len = min(strlen(src), cnt);
+	for(i=0 ; i<len ; i++) {
 		dst[i] = src[i];
 	}
 
@@ -93,6 +105,9 @@ int strcmp(const char *s1, const char *s2)
 	int n2 = strlen(s2);
 	int len = min(n1, n2);
 	int i, s;
+
+	if(!len)
+		return *s1 - *s2;
 
 	for(i = 0; i < len; i++) {
 		s = s1[i] - s2[i];
