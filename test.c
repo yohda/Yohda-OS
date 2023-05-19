@@ -126,9 +126,7 @@ void string_test_strcmp()
 	debug("test3#%d\n", strcmp("123", "123"));
 	debug("test3#%d\n", strcmp("werwe2", "wefwef"));
 }
-
 #endif
-
 
 void stack_test_001()
 {
@@ -138,57 +136,95 @@ void stack_test_001()
 }
 
 #ifdef LIST_TEST
+struct list_test head; 
+void list_test_init()
+{
+	debug("========root init========\n")
+	memset(&head, 0, sizeof(head));
+	list_init_head(&head.node);
+	
+	if(!strncpy(head.name, "mother", 6))
+		debug("err\n");
+	
+	head.a = 14;
+}
+
+void list_test_crt_data(struct list_test *childs, int size)
+{
+	int i = 0;
+	char *names[10] = {
+		"father", "yohdaOS is best", "happy new year", NULL, "function", "study", NULL, "zero", "quite", "apple"
+	};
+
+	memset(childs, 0, size);
+	for(i=0 ; i<10 ; i++) {
+		strncpy(childs[i].name, names[i], 36);
+		childs[i].a = i;
+		//debug("childs[%d]#0x%x, node#0x%x, name#%s, len#%d\n", i, &childs[i], &(childs[i].node), names[i], strlen(names[i]));
+		if(!list_add(&(head.node), &(childs[i].node)))
+			debug("%d failed\n", i);
+	}
+}
 
 void list_test_empty_list_for()
 {
 	struct list_test root;
 	//struct list_node *head;
 	struct list_node *test = NULL;
-	list_init_head(&root.list);
+	list_init_head(&root.node);
 
 	struct list_test tmp1;
-	list_for_each(&root.list, test) {
+	list_for_each(&root.node, test) {
 		debug("ef\n");
 	}
 }
 
 void list_test_add()
 {
-	struct list_node *head;
-	list_init_head(head);
-
-	struct list_test tmp1;
-	tmp1.a = 1;
-	tmp1.b = 323;
+	struct list_test childs[10];
 	
-	struct list_test tmp2;
-	tmp2.a = 2;
-	tmp2.b = 98;
-
-	struct list_test tmp3;
-	tmp3.a = 3;
-	tmp3.b = 4829;
-	
-	struct list_test tmp4;
-	tmp4.a = 4;
-	tmp4.b = 423829;
-
-	struct list_test tmp5;
-	tmp5.a = 5;
-	tmp5.b = 482429;
-
-	list_add_head(head, &tmp1.list);
-	list_add_head(head, &tmp2.list);
-	list_add_head(head, &tmp3.list);	
-	list_add_head(head, &tmp4.list);	
-	list_add_head(head, &tmp5.list);	
+	list_test_init();
+	list_test_crt_data(childs, sizeof(childs));
 	
 	struct list_node *aaa;
 	struct list_test *temp;
 	
-	list_for_each(head, aaa) 
+	list_for_each(&head.node, aaa) 
 	{
-		temp = container_of(aaa, struct list_test, list);
+		temp = container_of(aaa, struct list_test, node);
+		debug("0x%d\n", temp->a);	
+	};
+}
+
+void list_test_del()
+{
+	struct list_test childs[10];
+	
+	list_test_init();
+
+	if(!list_del(&head.node, &childs[0].node))
+		debug("failed delete\n");	
+	
+	list_test_crt_data(childs, sizeof(childs));
+	
+	struct list_node *aaa;
+	struct list_test *temp;
+
+	if(!list_del(&head.node, &childs[0].node))
+		debug("failed delete\n");	
+
+	if(!list_del(&head.node, &childs[5].node))
+		debug("failed delete\n");	
+	
+	if(!list_del(&head.node, &childs[2].node))
+		debug("failed delete\n");	
+
+	if(!list_del(&head.node, NULL))
+		debug("failed delete\n");	
+	
+	list_for_each(&head.node, aaa) 
+	{
+		temp = container_of(aaa, struct list_test, node);
 		debug("0x%d\n", temp->a);	
 	};
 }
@@ -331,7 +367,6 @@ void bst_test_search_noexist_name()
 	}
 	srh = test = NULL;
 
-
 	srh = bst_search(&(root.node), "function", bst_search_comp);	
 	if(!srh) {
 		debug("failed\n");
@@ -342,7 +377,6 @@ void bst_test_search_noexist_name()
 	}
 	srh = test = NULL;
 
-
 	srh = bst_search(&(root.node), "apple", bst_search_comp);	
 	if(!srh) {
 		debug("failed\n");
@@ -352,7 +386,6 @@ void bst_test_search_noexist_name()
 	debug("name#%s dummy#%d\n", test->name, test->dummy);
 	srh = test = NULL;
 
-
 	srh = bst_search(&(root.node), "zero", bst_search_comp);	
 	if(!srh) {
 		debug("failed\n");
@@ -361,7 +394,6 @@ void bst_test_search_noexist_name()
 	test = container_of(srh, struct bst_test, node);
 	debug("name#%s dummy#%d\n", test->name, test->dummy);
 	srh = test = NULL;
-
 
 	srh = bst_search(&(root.node), "23ruf", bst_search_comp);	
 	if(!srh) {

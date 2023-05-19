@@ -15,8 +15,8 @@ void stack_test_001();
 
 struct list_test {
 	int a;
-	int b;
-	struct list_node list;
+	char name[64];
+	struct list_node node;
 };
 
 struct bst_test {
