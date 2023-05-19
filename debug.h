@@ -1,5 +1,10 @@
 #include "Console.h"
 
+#define err_dbg(err, fmt, ...) ({ 	\
+		debug(fmt, ##__VA_ARGS__);	\
+		err;		\
+})
+
 #define msg(fmt, ...) kPrintf(fmt, ##__VA_ARGS__);
 #define debug(fmt, ...) kPrintf("[f:%s][l:%d]" fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
 
