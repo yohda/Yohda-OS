@@ -3,8 +3,9 @@
 
 #include "type.h"
 
-#define BIT_SET 0x01
-#define BIT_CLR 0x00
+#define BITMAP_DEF_BIT 	(32)
+#define BIT_SET 		(0x01)
+#define BIT_CLR 		(0x00)
 
 struct bitmap {
 	void *base; 

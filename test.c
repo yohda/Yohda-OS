@@ -4,6 +4,7 @@
 #include "stack.h"
 #include "mm.h"
 #include "bitmap.h"
+#include "pool.h"
 
 #ifdef STRING_TEST
 void string_test_strtok()
@@ -405,4 +406,48 @@ void bst_test_search_noexist_name()
 	srh = test = NULL;
 }
 
+#endif
+
+#ifdef POOL_TEST
+void pool_test()
+{
+	mm_init(1*1023*891*913);
+	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10;
+
+	// Start from here, allocation for pool memeory
+	p1 = pl_alloc(15);
+	pl_debug("0x%x\n", p1);
+
+	p2 = pl_alloc(7);
+	pl_debug("0x%x\n", p2);
+
+	p3 = pl_alloc(3);
+	pl_debug("0x%x\n", p3);
+
+	p4 = pl_alloc(12);
+	pl_debug("0x%x\n", p4);
+
+	p5 = pl_alloc(1);
+	pl_debug("0x%x\n", p5);
+
+/////////////////////////////////////
+	// Start from here, free pool de-allocation
+
+	pl_free(p3);
+	pl_free(p4);
+
+/////////////////////////////////////
+	p3 = pl_alloc(14);
+	pl_debug("0x%x\n", p3);
+
+	p4 = pl_alloc(7);
+	pl_debug("0x%x\n", p4);
+
+	p6 = pl_alloc(14);
+	pl_debug("0x%x\n", p6);
+
+	p7 = pl_alloc(7);
+	pl_debug("0x%x\n", p7);
+
+}	
 #endif

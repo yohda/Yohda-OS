@@ -2,6 +2,8 @@
 #include "mm.h"
 #include "debug.h"
 
+#define BYTE_UNIT 		8
+
 // On 2023.5.12, it support only by 32-bit. later, i plan to support by 64-bit.
 const u32 bit_cmp[64] = { 
 	0x00000000, 									// 0
@@ -14,7 +16,11 @@ const u32 bit_cmp[64] = {
 	0x01FFFFFF, 0x03FFFFFF, 0x07FFFFFF, 0x0FFFFFFF, // 24 ~ 27
 	0x1FFFFFFF, 0x3FFFFFFF, 0x7FFFFFFF, 0xFFFFFFFF, // 28 ~ 31
 };
-
+/*
+ * bmp - `struct bitmap` address
+ * bit - what bits you handle i.e) 32-bit, 24-bit, 16-bit ...
+ * size - bitmap number
+ * */
 int bitmap_alloc(struct bitmap *bmp, const u32 bit, const u32 size)
 {
 	if(!bmp)
@@ -23,7 +29,7 @@ int bitmap_alloc(struct bitmap *bmp, const u32 bit, const u32 size)
 	if(bit < 1 || size < 1)
 		return -1;
 
-	bmp->base = mm_alloc((bit/32)*size, MM_KL);
+	bmp->base = mm_alloc((bit/BYTE_UNIT)*size, MM_KL);
 	if(!bmp->base)
 		return -1;
 
@@ -39,10 +45,8 @@ int bitmap_set(struct bitmap *bmp, u32 ost, bool f)
 	int i = 0, n = 0, bit = 0;
 	u32 *bits;
 
-	if(!bmp || !bmp->base) {
-		debug("");
-		return -1;
-	}
+	if(!bmp || !bmp->base) 
+		return err_dbg(-1, "err\n");
 
 	bits = (u32 *)bmp->base;
 	bit = bmp->bit;
@@ -52,6 +56,8 @@ int bitmap_set(struct bitmap *bmp, u32 ost, bool f)
 	} else {
 		*(bits+(ost/bit)) &= ~(0x1<<(ost%bit));		
 	}
+
+	return ost;
 }
 
 int bitmap_get_free(struct bitmap *bmp)
@@ -59,10 +65,8 @@ int bitmap_get_free(struct bitmap *bmp)
 	int i = 0, j = 0, n = 0, bit = 0;
 	u32 *bits;
 
-	if(!bmp || !bmp->base) {
-		debug("");
-		return -1;
-	}
+	if(!bmp || !bmp->base) 
+		return err_dbg(-1, "err\n");
 
 	bits = (u32 *)bmp->base;
 	bit = bmp->bit;
@@ -73,10 +77,8 @@ int bitmap_get_free(struct bitmap *bmp)
 			break;
 	}
 
-	if(i == n) {
-		debug("");
-		return -4;
-	}
+	if(i == n)
+		return err_dbg(-4, "err\n");
 	
 	for(j=0 ; j<bit ; j++) {
 		if(!(*bits>>j & 0x1))

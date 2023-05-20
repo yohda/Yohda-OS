@@ -5,6 +5,7 @@
 #define BST_TEST
 #define STK_TEST
 #define STRING_TEST
+#define POOL_TEST
 
 #include "type.h"
 #include "list.h"
@@ -29,4 +30,5 @@ void list_test_add();
 void list_test_for();
 void list_test_empty_list_for();
 
+void pool_test();
 #endif

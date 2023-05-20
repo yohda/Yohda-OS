@@ -3,19 +3,19 @@
 
 #define POOL_CHUNK_LL_NUM		(128)
 
-#define POOL_USED				(BIT_SET)
-#define POOL_FREE				(BIT_CLR)
-
 struct pool_header {
 	u8 *next_addr;
 };
 
 struct pool {
-	u8 *base, *head; 		// base pointer, current point
-	u32 size;			// for limit and protection. don`t allow for cp to cross beyond the permited size 
+	u8 *base, *head; 		// base address, head poiner
+	u32 size;				// for limit and protection. don`t allow for cp to cross beyond the permited size 
 	u32 frees;
-	u32 chunk;
-	int ll;
+	u32 chunk;				// each pool chunk size including header(next address)
+	int ll;					// low limit size of pool
 };
+
+void *pl_alloc(int size);
+void pl_free(void *addr);
 
 #endif
