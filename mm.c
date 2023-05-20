@@ -3,6 +3,7 @@
 #include "errno.h"
 #include "mm.h"
 #include "debug.h"
+#include "pool.h"
 
 /* For Test */
 #define MM_TEST_HEAP128K_LL2048_BITMAP32x 
@@ -14,15 +15,13 @@
 #define MM_HEAP_DATA_BASE  	(0x2100000)
 
 // Actually Physical RAM size is 4GB. But, it is imposible to assign all 4GB. The parts in it are used in boot and system. 
-#define MM_RAM_SIZE 	(1*1024*1024*1024) 	// 1GB
+#define MM_RAM_SIZE 	(1*1023*891*913) 	
 
 #define MM_PAGE_SIZEx	
 // Upper Limit
 #define MM_ALLOC_UL		()
 // Low Limit
 #define MM_ALLOC_LL 	0x800 // I think it is better to select the size same as page, or more than it.
-
-#define MM_64_BASE_ADDR 	0xA00000  // 10MB
 
 // I think that it is able to change the a size of bitmaps. In your computer with operating 64-bit, it can be 64.
 
@@ -38,7 +37,8 @@ struct mm_manager {
 	// buddy
 	u32 dep;
 	u8 bitmap_size;
-	u32 ll;
+	u32 ll;	// low limit
+	u32 ul; // upper limit
 	struct mm_blk_hdr *hdr_base;
 	u32 hdr_size;
 	struct bitmaps *bitmaps;
@@ -162,8 +162,9 @@ int mm_init(u64 heap_size)
 	mm.dep = mm_get_dep(heap_size, mm.ll);
 	mm.heap_size = mm.ll * power(2, mm.dep-1); 
 	mm.rmd_size = heap_size - mm.heap_size;
+	mm.ul = mm.heap_size;
 
-	mm_debug("dep#%d heap#%d rmd#%d\n", mm.dep, mm.heap_size, mm.rmd_size);
+	mm_debug("dep#%d heap#0x%x rmd#0x%x\n", mm.dep, mm.heap_size, mm.rmd_size);
 
 	//mm.heap_size = 0x10000; // 32KB for test
 
@@ -212,6 +213,8 @@ int mm_init(u64 heap_size)
 	//mm.heap_size += mm.heap_hd_size;
 
 	mm_set_info("KERNEL HEAP", mm.heap_base, mm.heap_size);
+
+	pool_init(mm.heap_base + mm.heap_size, mm.rmd_size);
 
 #ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
 	void *a1 = mm_alloc(15400, MM_KL);
@@ -264,7 +267,7 @@ int mm_init(u64 heap_size)
 
 static int mm_rndup(u32 size)
 {
-	u32 block = mm.ll, i;
+	u32 block = mm.ll, i = 0;
 	u32 dep = mm.dep;
 
 	if(size < 1 || size > mm.heap_size) {
@@ -528,7 +531,7 @@ void* mm_alloc(u32 size, u32 flag)
 	void *addr;
 
 	if(size < 1) {
-		mm_debug("Invaid Parameter#%d\n", size);
+		mm_debug("(0x%x)Invaid Parameter#%d\n", __builtin_return_address(0), size);
 		return NULL;
 	}
 
