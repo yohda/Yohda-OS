@@ -5,8 +5,9 @@
 #define BST_TEST
 #define STK_TEST
 #define STRING_TEST
-#define POOL_TEST
+#define PL_TEST
 #define BUD_TEST
+#define MMI_TEST
 
 #include "type.h"
 #include "list.h"

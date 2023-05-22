@@ -3,8 +3,10 @@
 #include "string.h"
 #include "stack.h"
 #include "mm.h"
+#include "mmi.h"
 #include "bitmap.h"
 #include "pool.h"
+#include "buddy.h"
 
 #ifdef STRING_TEST
 void string_test_strtok()
@@ -408,125 +410,126 @@ void bst_test_search_noexist_name()
 
 #endif
 
-#ifdef POOL_TEST
+#ifdef PL_TEST
+extern struct mmif sm_if;
 void pool_test()
 {
 	mm_init(1*1023*891*913);
 	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10;
 
 	// Start from here, allocation for pool memeory
-	p1 = pl_alloc(15);
+	p1 = sm_if.mm_alloc(15);
 	pl_debug("0x%x\n", p1);
 
-	p2 = pl_alloc(7);
+	p2 = sm_if.mm_alloc(7);
 	pl_debug("0x%x\n", p2);
 
-	p3 = pl_alloc(3);
+	p3 = sm_if.mm_alloc(3);
 	pl_debug("0x%x\n", p3);
 
-	p4 = pl_alloc(12);
+	p4 = sm_if.mm_alloc(12);
 	pl_debug("0x%x\n", p4);
 
-	p5 = pl_alloc(1);
+	p5 = sm_if.mm_alloc(1);
 	pl_debug("0x%x\n", p5);
 
 /////////////////////////////////////
 	// Start from here, free pool de-allocation
 
-	pl_free(p3);
-	pl_free(p4);
+	sm_if.mm_free(p3);
+	sm_if.mm_free(p4);
 
 /////////////////////////////////////
-	p3 = pl_alloc(14);
+	p3 = sm_if.mm_alloc(14);
 	pl_debug("0x%x\n", p3);
 
-	p4 = pl_alloc(7);
+	p4 = sm_if.mm_alloc(7);
 	pl_debug("0x%x\n", p4);
 
-	p6 = pl_alloc(14);
+	p6 = sm_if.mm_alloc(14);
 	pl_debug("0x%x\n", p6);
 
-	p7 = pl_alloc(7);
+	p7 = sm_if.mm_alloc(7);
 	pl_debug("0x%x\n", p7);
 
 }	
 #endif
 
 #ifdef BUD_TEST
+extern struct mmif pm_if;
 void bud_test()
 {
-	mm_init(175*1024);
-	//_mm_init(871, 2, 7);
+	pm_if.mm_init(0x2000000, 175*1024);
 	
 	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
 
-	p1 = mm_alloc(921, MM_KL);
-	mm_debug("1-0x%x\n", p1);
+	p1 = pm_if.mm_alloc(921);
+	bud_debug("1-0x%x\n", p1);
 
-	p2 = mm_alloc(3293, MM_KL);
-	mm_debug("2-0x%x\n", p2);
+	p2 = pm_if.mm_alloc(3293);
+	bud_debug("2-0x%x\n", p2);
 
-	p3 = mm_alloc(18293, MM_KL);
-	mm_debug("3-0x%x\n", p3);
+	p3 = pm_if.mm_alloc(18293);
+	//bud_debug("3-0x%x\n", p3);
 
-	p4 = mm_alloc(1208, MM_KL);
-	mm_debug("4-0x%x\n", p4);
+	p4 = pm_if.mm_alloc(1208);
+	bud_debug("4-0x%x\n", p4);
 
-	p5 = mm_alloc(13029, MM_KL);
-	mm_debug("5-0x%x\n", p5);
+	p5 = pm_if.mm_alloc(13029);
+	bud_debug("5-0x%x\n", p5);
 
 /////////////////////////////////////////////////////////
 
-	p6 = mm_alloc(7829, MM_KL);
-	mm_debug("6-0x%x\n", p6);
+	p6 = pm_if.mm_alloc(7829);
+	bud_debug("6-0x%x\n", p6);
 
-	p7 = mm_alloc(15273, MM_KL);
-	mm_debug("7-0x%x\n", p7);
+	p7 = pm_if.mm_alloc(15273);
+	bud_debug("7-0x%x\n", p7);
 
-	p8 = mm_alloc(210293, MM_KL);
-	mm_debug("8-0x%x\n", p8);
+	p8 = pm_if.mm_alloc(210293);
+	//bud_debug("8-0x%x\n", p8);
 
-	p9 = mm_alloc(15273, MM_KL);
-	mm_debug("9-0x%x\n", p9);
+	p9 = pm_if.mm_alloc(15273);
+	bud_debug("9-0x%x\n", p9);
 
-	p10 = mm_alloc(NULL, MM_KL);
-	mm_debug("10-0x%x\n", p10);
+	p10 = pm_if.mm_alloc(NULL);
+	//bud_debug("10-0x%x\n", p10);
 
 
 ////////////////////////////////////////////////////////////
 
 
-	p11 = mm_alloc(15273, MM_KL);
-	mm_debug("11-0x%x\n", p11);
+	p11 = pm_if.mm_alloc(15273);
+	bud_debug("11-0x%x\n", p11);
 	
-	p12 = mm_alloc(15273, MM_KL);
-	mm_debug("12-0x%x\n", p12);
+	p12 = pm_if.mm_alloc(15273);
+	bud_debug("12-0x%x\n", p12);
 	
-	p13 = mm_alloc(15273, MM_KL);
-	mm_debug("13-0x%x\n", p13);
+	p13 = pm_if.mm_alloc(15273);
+	bud_debug("13-0x%x\n", p13);
 
-	p14 = mm_alloc(15273, MM_KL);
-	mm_debug("14-0x%x\n", p14);
+	p14 = pm_if.mm_alloc(15273);
+	bud_debug("14-0x%x\n", p14);
 
-	p15 = mm_alloc(15273, MM_KL);
-	mm_debug("15-0x%x\n", p15);
+	p15 = pm_if.mm_alloc(15273);
+	bud_debug("15-0x%x\n", p15);
 
 ////////////////////////////////////////////////////
 
-	p16 = mm_alloc(15273, MM_KL);
-	mm_debug("16-0x%x\n", p16);
+	p16 = pm_if.mm_alloc(15273);
+	bud_debug("16-0x%x\n", p16);
 
-	p17 = mm_alloc(7382, MM_KL);
-	mm_debug("17-0x%x\n", p17);
+	p17 = pm_if.mm_alloc(7382);
+	bud_debug("17-0x%x\n", p17);
 
-	p18 = mm_alloc(1832, MM_KL);
-	mm_debug("18-0x%x\n", p18);
+	p18 = pm_if.mm_alloc(1832);
+	bud_debug("18-0x%x\n", p18);
 
-	p19 = mm_alloc(3920, MM_KL);
-	mm_debug("19-0x%x\n", p19);
+	p19 = pm_if.mm_alloc(3920);
+	bud_debug("19-0x%x\n", p19);
 	
-	//p20 = mm_alloc(1832, MM_KL);
-	//mm_debug("20-0x%x\n", p20);
+	p20 = pm_if.mm_alloc(1832);
+	bud_debug("20-0x%x\n", p20);
 /////////////////////////////////////
 	// Start from here, free pool de-allocation
 
@@ -534,50 +537,147 @@ void bud_test()
 	//mm_free(p4);
 
 #ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
-	void *a1 = mm_alloc(15400, MM_KL);
-	//mm_debug("15.4K#0x%x\n", a1);
-	mm_debug("ord#0 block#0x%x\n", *bitmaps[0]);
-	mm_debug("ord#1 block#0x%x\n", *bitmaps[1]);
-	mm_debug("ord#2 block#0x%x\n", *bitmaps[2]);
-	mm_debug("ord#3 block#0x%x\n", *bitmaps[3]);
-	mm_debug("ord#4 block#0x%x\n", *bitmaps[4]);
-	mm_debug("ord#5 block#0x%x\n", *bitmaps[5]);
-	mm_debug("ord#6 block#0x%x\n", *bitmaps[6]);
+	void *a1 = pm_if.mm_alloc(15400, MM_KL);
+	//bud_debug("15.4K#0x%x\n", a1);
+	bud_debug("ord#0 block#0x%x\n", *bitmaps[0]);
+	bud_debug("ord#1 block#0x%x\n", *bitmaps[1]);
+	bud_debug("ord#2 block#0x%x\n", *bitmaps[2]);
+	bud_debug("ord#3 block#0x%x\n", *bitmaps[3]);
+	bud_debug("ord#4 block#0x%x\n", *bitmaps[4]);
+	bud_debug("ord#5 block#0x%x\n", *bitmaps[5]);
+	bud_debug("ord#6 block#0x%x\n", *bitmaps[6]);
 
-	//void *a2 = mm_alloc(6700);
-	//mm_debug("6.7K#0x%x\n", a2);
-	//mm_debug("ord#0 block#0x%x\n", *bitmaps[0]);
-	//mm_debug("ord#1 block#0x%x\n", *bitmaps[1]);
-	//mm_debug("ord#2 block#0x%x\n", *bitmaps[2]);
-	//mm_debug("ord#3 block#0x%x\n", *bitmaps[3]);
-	//mm_debug("ord#4 block#0x%x\n", *bitmaps[4]);
-	//mm_debug("ord#5 block#0x%x\n", *bitmaps[5]);
-	//mm_debug("ord#6 block#0x%x\n", *bitmaps[6]);
+	//void *a2 = pm_if.mm_alloc(6700);
+	//bud_debug("6.7K#0x%x\n", a2);
+	//bud_debug("ord#0 block#0x%x\n", *bitmaps[0]);
+	//bud_debug("ord#1 block#0x%x\n", *bitmaps[1]);
+	//bud_debug("ord#2 block#0x%x\n", *bitmaps[2]);
+	//bud_debug("ord#3 block#0x%x\n", *bitmaps[3]);
+	//bud_debug("ord#4 block#0x%x\n", *bitmaps[4]);
+	//bud_debug("ord#5 block#0x%x\n", *bitmaps[5]);
+	//bud_debug("ord#6 block#0x%x\n", *bitmaps[6]);
 
-	//void *a3 = mm_alloc(1200);
-	//mm_debug("1.2K#0x%x\n", a3);
+	//void *a3 = pm_if.mm_alloc(1200);
+	//bud_debug("1.2K#0x%x\n", a3);
 
-	//void *a4 = mm_alloc(43700);
-	//mm_debug("43.7K#0x%x\n", a4);
+	//void *a4 = pm_if.mm_alloc(43700);
+	//bud_debug("43.7K#0x%x\n", a4);
 	
-	//void *a5 = mm_alloc(27700);
-	//mm_debug("27.7K#0x%x\n", a5);
+	//void *a5 = pm_if.mm_alloc(27700);
+	//bud_debug("27.7K#0x%x\n", a5);
 	
-	//void *a6 = mm_alloc(27700); // Out of memory
-	//mm_debug("27.7K#0x%x\n", a6);
+	//void *a6 = pm_if.mm_alloc(27700); // Out of memory
+	//bud_debug("27.7K#0x%x\n", a6);
 	
-	//void *a7 = mm_alloc(3029);
+	//void *a7 = pm_if.mm_alloc(3029);
 
-	//void *a8 = mm_alloc(2200); // Out of memory
-	//mm_debug("2.2K#0x%x\n", a8);
+	//void *a8 = pm_if.mm_alloc(2200); // Out of memory
+	//bud_debug("2.2K#0x%x\n", a8);
 	
-	//void *a9 = mm_alloc(892);
+	//void *a9 = pm_if.mm_alloc(892);
 	
 	//mm_free(a3);
 	//mm_free(a8);
 	//mm_free(a9);
 	//mm_free(a7);
 #endif
+}
+#endif
 
+#ifdef MMI_TEST
+void mmi_test()
+{
+	mmi_init(0x2000000, 175*1024);
+
+	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
+
+	p1 = yalloc(921, MM_KL);
+	mm_debug("1-0x%x\n", p1);
+
+	p2 = yalloc(3293, MM_KL);
+	mm_debug("2-0x%x\n", p2);
+
+	p3 = yalloc(18293, MM_KL);
+	//mm_debug("3-0x%x\n", p3);
+
+	p4 = yalloc(1208, MM_KL);
+	mm_debug("4-0x%x\n", p4);
+
+	p5 = yalloc(13029, MM_KL);
+	mm_debug("5-0x%x\n", p5);
+
+/////////////////////////////////////////////////////////
+
+	p6 = yalloc(7829, MM_KL);
+	mm_debug("6-0x%x\n", p6);
+
+	p7 = yalloc(15273, MM_KL);
+	mm_debug("7-0x%x\n", p7);
+
+	p8 = yalloc(210293, MM_KL);
+	//mm_debug("8-0x%x\n", p8);
+
+	p9 = yalloc(15273, MM_KL);
+	mm_debug("9-0x%x\n", p9);
+
+	p10 = yalloc(NULL, MM_KL);
+	//mm_debug("10-0x%x\n", p10);
+
+
+////////////////////////////////////////////////////////////
+
+
+	p11 = yalloc(15273, MM_KL);
+	mm_debug("11-0x%x\n", p11);
+	
+	p12 = yalloc(15273, MM_KL);
+	mm_debug("12-0x%x\n", p12);
+	
+	p13 = yalloc(15273, MM_KL);
+	mm_debug("13-0x%x\n", p13);
+
+	p14 = yalloc(15273, MM_KL);
+	mm_debug("14-0x%x\n", p14);
+
+	p15 = yalloc(15273, MM_KL);
+	mm_debug("15-0x%x\n", p15);
+
+////////////////////////////////////////////////////
+
+	p16 = yalloc(15273, MM_KL);
+	mm_debug("16-0x%x\n", p16);
+
+	p17 = yalloc(7382, MM_KL);
+	mm_debug("17-0x%x\n", p17);
+
+	p18 = yalloc(1832, MM_KL);
+	mm_debug("18-0x%x\n", p18);
+
+	p19 = yalloc(3920, MM_KL);
+	mm_debug("19-0x%x\n", p19);
+	
+	p20 = yalloc(1832, MM_KL);
+	mm_debug("20-0x%x\n", p20);
+/////////////////////////////////////
+	// Start from here, free pool de-allocation
+
+	yfree(p20);
+	yfree(p18);
+	yfree(p17);
+	yfree(p16);
+	yfree(p15);
+	yfree(p14);
+	yfree(p13);
+	yfree(p12);
+	yfree(p11);
+	yfree(p9);
+	yfree(p7);
+	yfree(p5);
+	yfree(p6);
+	yfree(p4);
+	yfree(p2);
+	//yfree(p1);
+	
+	return ;
 }
 #endif
