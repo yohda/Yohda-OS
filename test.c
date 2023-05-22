@@ -451,3 +451,133 @@ void pool_test()
 
 }	
 #endif
+
+#ifdef BUD_TEST
+void bud_test()
+{
+	mm_init(175*1024);
+	//_mm_init(871, 2, 7);
+	
+	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
+
+	p1 = mm_alloc(921, MM_KL);
+	mm_debug("1-0x%x\n", p1);
+
+	p2 = mm_alloc(3293, MM_KL);
+	mm_debug("2-0x%x\n", p2);
+
+	p3 = mm_alloc(18293, MM_KL);
+	mm_debug("3-0x%x\n", p3);
+
+	p4 = mm_alloc(1208, MM_KL);
+	mm_debug("4-0x%x\n", p4);
+
+	p5 = mm_alloc(13029, MM_KL);
+	mm_debug("5-0x%x\n", p5);
+
+/////////////////////////////////////////////////////////
+
+	p6 = mm_alloc(7829, MM_KL);
+	mm_debug("6-0x%x\n", p6);
+
+	p7 = mm_alloc(15273, MM_KL);
+	mm_debug("7-0x%x\n", p7);
+
+	p8 = mm_alloc(210293, MM_KL);
+	mm_debug("8-0x%x\n", p8);
+
+	p9 = mm_alloc(15273, MM_KL);
+	mm_debug("9-0x%x\n", p9);
+
+	p10 = mm_alloc(NULL, MM_KL);
+	mm_debug("10-0x%x\n", p10);
+
+
+////////////////////////////////////////////////////////////
+
+
+	p11 = mm_alloc(15273, MM_KL);
+	mm_debug("11-0x%x\n", p11);
+	
+	p12 = mm_alloc(15273, MM_KL);
+	mm_debug("12-0x%x\n", p12);
+	
+	p13 = mm_alloc(15273, MM_KL);
+	mm_debug("13-0x%x\n", p13);
+
+	p14 = mm_alloc(15273, MM_KL);
+	mm_debug("14-0x%x\n", p14);
+
+	p15 = mm_alloc(15273, MM_KL);
+	mm_debug("15-0x%x\n", p15);
+
+////////////////////////////////////////////////////
+
+	p16 = mm_alloc(15273, MM_KL);
+	mm_debug("16-0x%x\n", p16);
+
+	p17 = mm_alloc(7382, MM_KL);
+	mm_debug("17-0x%x\n", p17);
+
+	p18 = mm_alloc(1832, MM_KL);
+	mm_debug("18-0x%x\n", p18);
+
+	p19 = mm_alloc(3920, MM_KL);
+	mm_debug("19-0x%x\n", p19);
+	
+	//p20 = mm_alloc(1832, MM_KL);
+	//mm_debug("20-0x%x\n", p20);
+/////////////////////////////////////
+	// Start from here, free pool de-allocation
+
+	//mm_free(p3);
+	//mm_free(p4);
+
+#ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
+	void *a1 = mm_alloc(15400, MM_KL);
+	//mm_debug("15.4K#0x%x\n", a1);
+	mm_debug("ord#0 block#0x%x\n", *bitmaps[0]);
+	mm_debug("ord#1 block#0x%x\n", *bitmaps[1]);
+	mm_debug("ord#2 block#0x%x\n", *bitmaps[2]);
+	mm_debug("ord#3 block#0x%x\n", *bitmaps[3]);
+	mm_debug("ord#4 block#0x%x\n", *bitmaps[4]);
+	mm_debug("ord#5 block#0x%x\n", *bitmaps[5]);
+	mm_debug("ord#6 block#0x%x\n", *bitmaps[6]);
+
+	//void *a2 = mm_alloc(6700);
+	//mm_debug("6.7K#0x%x\n", a2);
+	//mm_debug("ord#0 block#0x%x\n", *bitmaps[0]);
+	//mm_debug("ord#1 block#0x%x\n", *bitmaps[1]);
+	//mm_debug("ord#2 block#0x%x\n", *bitmaps[2]);
+	//mm_debug("ord#3 block#0x%x\n", *bitmaps[3]);
+	//mm_debug("ord#4 block#0x%x\n", *bitmaps[4]);
+	//mm_debug("ord#5 block#0x%x\n", *bitmaps[5]);
+	//mm_debug("ord#6 block#0x%x\n", *bitmaps[6]);
+
+	//void *a3 = mm_alloc(1200);
+	//mm_debug("1.2K#0x%x\n", a3);
+
+	//void *a4 = mm_alloc(43700);
+	//mm_debug("43.7K#0x%x\n", a4);
+	
+	//void *a5 = mm_alloc(27700);
+	//mm_debug("27.7K#0x%x\n", a5);
+	
+	//void *a6 = mm_alloc(27700); // Out of memory
+	//mm_debug("27.7K#0x%x\n", a6);
+	
+	//void *a7 = mm_alloc(3029);
+
+	//void *a8 = mm_alloc(2200); // Out of memory
+	//mm_debug("2.2K#0x%x\n", a8);
+	
+	//void *a9 = mm_alloc(892);
+	
+	//mm_free(a3);
+	//mm_free(a8);
+	//mm_free(a9);
+	//mm_free(a7);
+#endif
+
+}
+#endif

@@ -4,6 +4,7 @@
 #include "mm.h"
 #include "debug.h"
 #include "pool.h"
+#include "bitmap.h"
 
 /* For Test */
 #define MM_TEST_HEAP128K_LL2048_BITMAP32x 
@@ -15,13 +16,15 @@
 #define MM_HEAP_DATA_BASE  	(0x2100000)
 
 // Actually Physical RAM size is 4GB. But, it is imposible to assign all 4GB. The parts in it are used in boot and system. 
-#define MM_RAM_SIZE 	(1*1023*891*913) 	
+#define MM_RAM_SIZE 		(1*1023*891*913) 	
 
-#define MM_PAGE_SIZEx	
+#define MM_PAGE_SIZE		(0x800)	
 // Upper Limit
-#define MM_ALLOC_UL		()
+#define MM_ALLOC_UL			()
 // Low Limit
-#define MM_ALLOC_LL 	0x800 // I think it is better to select the size same as page, or more than it.
+#define MM_ALLOC_LL 		MM_PAGE_SIZE // I think it is better to select the size same as page, or more than it.
+
+#define MM_HEAP_MIN_SIZE 	(0x20000)
 
 // I think that it is able to change the a size of bitmaps. In your computer with operating 64-bit, it can be 64.
 
@@ -33,6 +36,9 @@ u64 BITMAP_INIT64[] = { 0x0000000000000000, 0xFFFFFFFE00000000, 0xFFFFFFFC000000
 
 #define MM_BITMAP_INIT(x) BITMAP_INIT##mm.bitmap_size
 
+#define BUD_MAX_ORD	 		(11)
+#define BUD_MIN_CHUNK		(8)
+
 struct mm_manager {
 	// buddy
 	u32 dep;
@@ -41,8 +47,8 @@ struct mm_manager {
 	u32 ul; // upper limit
 	struct mm_blk_hdr *hdr_base;
 	u32 hdr_size;
-	struct bitmaps *bitmaps;
-
+	//struct bitmaps *bitmaps;
+	
 	// mem layout
 	struct memory_layout *ml;
 	struct list_node ml_list;
@@ -50,6 +56,7 @@ struct mm_manager {
 
 	// memory info
 	u32 page_size;
+	u32 org_size;
 	u32 heap_ul_size;
 	u32 heap_meta_base;
 	u32 heap_meta_size;
@@ -58,8 +65,8 @@ struct mm_manager {
 	u32 rmd_size;
 };
 
+struct bitmaps *bud;
 struct mm_manager mm;
-u32 **blocks;
 
 int mm_show_info()
 {
@@ -68,6 +75,21 @@ int mm_show_info()
 		mm_debug("name#%s\n",mm.ml[i].name);
 		mm_debug("base#0x%x, size#0x%x\n", mm.ml[i].base, mm.ml[i].size);
 	}
+
+	mm_debug("YohdaOS Buddy Info\n");
+	mm_debug("Original size#0x%x\n", mm.org_size);
+	//mm_debug("Data size#0x%x\n", mm.heap_size);
+	mm_debug("Data size#0x%x\n", mm.heap_size);
+	mm_debug("Meta data size#0x%x\n", mm.heap_meta_size);
+	mm_debug("Remaider size#0x%x\n", mm.rmd_size);
+	mm_debug("Buddy dep#%d\n", mm.dep);
+	mm_debug("Buddy Upper limit#%d\n", mm.ul);
+	mm_debug("Buddy Lower limit#%d\n", mm.ll);
+	for(i=0 ; i<mm.dep ; i++) {
+		mm_debug("Bitmap Order#%d\n", i);
+		mm_debug("Size#%d, Number#%d, Fres#%d\n", bud[i].bmp.size, bud[i].num, bud[i].frees);
+	}
+
 }
 
 void* mm_get_ml(void)
@@ -115,154 +137,26 @@ static u32 mm_get_chunk(u8 dep)
 	return chunk;
 }
 
-static int mm_get_dep(u32 heap_size, u32 ll)
+static int mm_get_dep(const int heap_size, const int _ll)
 {
 	int i;
-	int size;
+	int ll;
 
-	if(heap_size < 1 || ll < 1)
+	if(heap_size<1 || _ll<1)
 		return -EINVAL; 
 
-	if(heap_size <= ll) {
-		mm_debug("ram size is less than lower limit. you will need to check it.\n");
-		return -1;
-	}
+	if(heap_size <= _ll)
+		return err_dbg(-1, "ram size is less than lower limit. you will need to check it.\n");
 
-	size = ll;
-	for(i = 0 ; ll <= heap_size ; i++)
+	ll = _ll;
+	for(i=0 ; ll<=heap_size ; i++) {
+		if(heap_size/ll < BUD_MIN_CHUNK)	
+			return i;
+
 		ll *= 2;
-
-	return i;
-}
-
-// RAM 사이즈에 대한 디텍은 BIOS 나 UEFI를 통해서 하는게 가장 좋다고 한다.
-// 이게 Memory Controller를 통해서 RAM 사이즈를 얻는 경우가 가장 좋다는거 같은데, BIOS 나 UEFI가 칩 벤더 레벨에서 알아서 이 정보를 가져와 주기 때문인 거 같다.
-int mm_init(u64 heap_size)
-{
-	int i, j;
-	// automatically calculate RAM size ... and assign each number of order-n-block bitmaps
-	heap_size = MM_RAM_SIZE;
-#ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
-	heap_size = 0x20000|0x200;
-#endif
-	u32 ll;
-
-	mm.ml = MM_META_BASE;
-	mm.heap_meta_base = MM_HEAP_META_BASE;
-	mm.ll = 2048;
-#ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
-	mm.ll = 2048;
-#endif
-
-	mm.bitmap_size = 32;
-#ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
-	mm.bitmap_size = 32;
-#endif
-
-	mm.dep = mm_get_dep(heap_size, mm.ll);
-	mm.heap_size = mm.ll * power(2, mm.dep-1); 
-	mm.rmd_size = heap_size - mm.heap_size;
-	mm.ul = mm.heap_size;
-
-	mm_debug("dep#%d heap#0x%x rmd#0x%x\n", mm.dep, mm.heap_size, mm.rmd_size);
-
-	//mm.heap_size = 0x10000; // 32KB for test
-
-	u32 num[mm.dep];
-
-	ll = mm.ll; 
-	blocks[0] = (u32 *)mm.heap_meta_base;
-	
-	// bitmaps heap meta data
-	for(i = 0; i < mm.dep ; i++) {
-		num[i] = (mm.heap_size / ll);
-		num[i] = (num[i] / mm.bitmap_size) + ((num[i] % mm.bitmap_size) ? 1 : 0) ;
-	
-		//mm_debug("dep#%d, mem#0x%x, block-size#%d, num#%d\n", i, blocks[i], ll, num[i]);
-		ll *= 2;
-
-		blocks[i+1] = blocks[i] + num[i];
-		kMemSet(blocks[i], BITMAP_INIT32[5], (u32)blocks[i+1] - (u32)blocks[i]);	
 	}
 
-	j = log(2, mm.bitmap_size);
-	for(i = mm.dep-j ; j > -1 ; j--, i++) {
-		*blocks[i] = BITMAP_INIT32[j-1];
-	}
-
-	mm_set_info("BUDDY BITMAPS", blocks[0], (u32)(blocks[mm.dep]) - (u32)(blocks[0]));
-	
-	// bitmaps management meta data
-	mm.bitmaps = (struct bitmaps *)(blocks[mm.dep-1] + num[mm.dep-1]);	
-	for(i = 0 ; i < mm.dep ; i++) {
-		mm.bitmaps[i].ord = i;
-		mm.bitmaps[i].len = num[i];
-		mm.bitmaps[i].block = blocks[i];	
-	}
-
-	mm_set_info("BUDDY BITMAPS MANAGEMENT", mm.bitmaps, (u32)(mm.bitmaps + (mm.dep)) - (u32)mm.bitmaps);
-
-	// bitmaps heap header meta data
-	mm.hdr_base = (u8 *)(mm.bitmaps + mm.dep);
-	mm.hdr_size = (mm.heap_size / mm.ll) * sizeof(struct mm_blk_hdr);
-	
-	mm_set_info("BUDDY BITMAPS HEADER", mm.hdr_base, mm.hdr_size);
-
-	// heap base
-	mm.heap_base = (u32)(mm.hdr_base + mm.hdr_size);
-	//mm.heap_size += mm.heap_hd_size;
-
-	mm_set_info("KERNEL HEAP", mm.heap_base, mm.heap_size);
-
-	pool_init(mm.heap_base + mm.heap_size, mm.rmd_size);
-
-#ifdef MM_TEST_HEAP128K_LL2048_BITMAP32
-	void *a1 = mm_alloc(15400, MM_KL);
-	//mm_debug("15.4K#0x%x\n", a1);
-	mm_debug("ord#0 block#0x%x\n", *blocks[0]);
-	mm_debug("ord#1 block#0x%x\n", *blocks[1]);
-	mm_debug("ord#2 block#0x%x\n", *blocks[2]);
-	mm_debug("ord#3 block#0x%x\n", *blocks[3]);
-	mm_debug("ord#4 block#0x%x\n", *blocks[4]);
-	mm_debug("ord#5 block#0x%x\n", *blocks[5]);
-	mm_debug("ord#6 block#0x%x\n", *blocks[6]);
-
-	//void *a2 = mm_alloc(6700);
-	//mm_debug("6.7K#0x%x\n", a2);
-	//mm_debug("ord#0 block#0x%x\n", *blocks[0]);
-	//mm_debug("ord#1 block#0x%x\n", *blocks[1]);
-	//mm_debug("ord#2 block#0x%x\n", *blocks[2]);
-	//mm_debug("ord#3 block#0x%x\n", *blocks[3]);
-	//mm_debug("ord#4 block#0x%x\n", *blocks[4]);
-	//mm_debug("ord#5 block#0x%x\n", *blocks[5]);
-	//mm_debug("ord#6 block#0x%x\n", *blocks[6]);
-
-	//void *a3 = mm_alloc(1200);
-	//mm_debug("1.2K#0x%x\n", a3);
-
-	//void *a4 = mm_alloc(43700);
-	//mm_debug("43.7K#0x%x\n", a4);
-	
-	//void *a5 = mm_alloc(27700);
-	//mm_debug("27.7K#0x%x\n", a5);
-	
-	//void *a6 = mm_alloc(27700); // Out of memory
-	//mm_debug("27.7K#0x%x\n", a6);
-	
-	//void *a7 = mm_alloc(3029);
-
-	//void *a8 = mm_alloc(2200); // Out of memory
-	//mm_debug("2.2K#0x%x\n", a8);
-	
-	//void *a9 = mm_alloc(892);
-	
-	//mm_free(a3);
-	//mm_free(a8);
-	//mm_free(a9);
-	//mm_free(a7);
-#endif
-
-	return 0;
+	return i>=BUD_MAX_ORD ? BUD_MAX_ORD : i;
 }
 
 static int mm_rndup(u32 size)
@@ -290,10 +184,8 @@ static int mm_get_ord(u32 chunk)
 	u32 dep = mm.dep;
 	u32 size = mm.ll, i;
 
-	if(chunk < mm.ll || chunk > mm.heap_size) {
-		mm_debug("Invalid Parameter#%d\n", chunk);
-		return -EINVAL;
-	}
+	if(chunk < mm.ll || chunk > mm.ul)
+		return err_dbg(-EINVAL, "Invalid Parameter#%d\n", chunk);
 
 	for(i = 0 ; i < dep; i++) {
 		if(chunk == size)
@@ -305,95 +197,45 @@ static int mm_get_ord(u32 chunk)
 	return 0;
 }
 
-static int mm_find_free_bit(u32 dep, u32 byte_ost)
+static int bud_set_bit(struct bitmaps *bud, int ost, bool f)
 {
-	u32* blk;
- 	u32 i;
+	int err = -1;
+	
+	if(!bud)
+		return err_dbg(-1, "err\n");
 
-	if(dep < 0) {
-		mm_debug("Invalid Parameter(dep)#%d\n", dep);
-		return -EINVAL;
-	}
+	if(ost < 0)	
+		return err_dbg(-EINVAL, "Invalid Parameter(ost)#%d\n", ost);
 
-	if(byte_ost > mm.bitmaps[dep].len || byte_ost < 0) {
-		mm_debug("Invalid Parameter(byte_ost)#%d\n", byte_ost);
-		return -EINVAL;
-	}
+	if(f != MM_BUD_FREE && f != MM_BUD_USED)	
+		err_dbg(-EINVAL, "Invalid Parameter(f)#%d\n", f);
 
-	blk = mm.bitmaps[dep].block + byte_ost;
-	for(i = 0 ; i < mm.bitmap_size ; i++) {
-		if(!(((*blk) >> i) & 0x00000001)) {
-			*blk = (*blk) | (0x01 << i); // From now on, this block will be in used.	
-			return i;
-		}
-	}
+	err = bitmap_get(&bud->bmp, ost);
+	if(err < 0)
+		return err_dbg(-1, "err\n");
 
-	return -1;	
-}
+	if(err == f)
+		return 0;
 
-// If founded the free a block, the function will return location of it unit a byte. 
-static int mm_find_free_byte(u32 dep)
-{
-	u32 i;
-	u32 *blk;
+	bud->frees += f ? -1 : 1;
 
-	if(dep < 0) {
-		mm_debug("Invalid Parameter#%d\n", dep);
-		return -EINVAL;
-	}
-
-	for(i = 0 ; i < mm.bitmaps[dep].len ; i++) {
-		blk = (mm.bitmaps[dep].block) + i;
-		if(((*blk) & 0xFFFFFFFF) == 0xFFFFFFFF)
-			continue;
-
-		return i;
-	}
+	err = bitmap_set(&bud->bmp, ost, !!f);
+	if(err < 0)
+		return err_dbg(err, "err\n");
 		
-	return -1;
-}
-
-static int mm_set_bit(u32 dep, u32 ost, u32 f)
-{
-	u32 *blk;
-	u8 ret;
-	if(ost < 0) {	
-		mm_debug("Invalid Parameter(ost)#%d\n", ost);
-		return -EINVAL;
-	}
-
-	if(f != MM_BUD_FREE && f != MM_BUD_USED) {	
-		mm_debug("Invalid Parameter(f)#%d\n", f);
-		return -EINVAL;
-	}
- 
-	blk = (mm.bitmaps[dep].block) + (ost / mm.bitmap_size);
-	if(f == MM_BUD_USED) {
-		*blk = *blk | (f << (ost % mm.bitmap_size));
-	} else {
-		*blk = *blk & (~((0x01) << (ost % mm.bitmap_size)));
-	}
-
 	return 0;
-}
-
-static bool mm_is_used(u32 ord, u32 ost)
-{
-	u32 *blk = (mm.bitmaps[ord].block) + (ost / mm.bitmap_size);
-
-	return (*blk & (0x01 << (ost % mm.bitmap_size)));
 }
 
 static bool mm_is_bud_used(u32 ord, u32 ost)
 {
 	u32 bud_ost = ost + ((ost % 2) ? -1 : 1);
 	
-	return mm_is_used(ord, bud_ost);
+	return bitmap_get(&bud[ord].bmp, ost);
 }
 
 static bool mm_merge(u8 ord, u32 ost, bool f)
 {
-	mm_set_bit(ord, ost, !!f);
+	bud_set_bit(&bud[ord], ost, !!f);
 
 	if(ord == (mm.dep-1)) {
 		mm_debug("this block is largest in buddy. So, it`s buddy is not exist.\n");	
@@ -408,10 +250,10 @@ static bool mm_merge(u8 ord, u32 ost, bool f)
 
 static bool mm_search(u8 ord, u32 ost, bool f)
 {
-	if(mm_is_used(ord, ost))
+	if(bitmap_get(&bud[ord].bmp, ost))
 		return true;
 
-	mm_set_bit(ord, ost, !!f);
+	bud_set_bit(&bud[ord], ost, !!f);
 	return false;
 }
 
@@ -457,7 +299,7 @@ static int mm_chk_childs(u32 ord, u32 ost, bool f)
 		n *= 2;
 		k *= 2;
 		for(j = n; j < n+k; j++) {
-			mm_set_bit(i, j, !!f);
+			bud_set_bit(&bud[i], j, !!f);
 		}
 	}
 	/*
@@ -483,26 +325,18 @@ static int mm_chk_childs(u32 ord, u32 ost, bool f)
 
 static int mm_find_free(int ord)
 {
-	int ost, byte_ost, bit_ost;
+	int ost;
 
 	if(ord < 0) {
 		mm_debug("Invalid Parameter#%d\n", ord);
 		return -EINVAL;
 	}
 
-	byte_ost = mm_find_free_byte(ord);
-	if(byte_ost < 0) {
-		mm_debug("requested size of block is not exist\n");
-		return byte_ost;
-	}
+	ost = bitmap_get_free(&bud[ord].bmp);	
+	if(ost < 0)
+		return err_dbg(-4, "Available chunk is not exist... instead, you can request less more than the chunk\n");
 
-	bit_ost = mm_find_free_bit(ord, byte_ost);
-	if(bit_ost < 0)
-		return bit_ost;
-
-	ost = (byte_ost * mm.bitmap_size) + bit_ost;
-	
-	mm_set_bit(ord, ost, MM_BUD_USED);
+	bud_set_bit(&bud[ord], ost, MM_BUD_USED);
 	mm_chk_childs(ord, ost, MM_BUD_USED);	
 	mm_chk_parent(ord, ost, MM_BUD_USED, mm_search);
 
@@ -516,7 +350,6 @@ static void *mm_encode(u32 chunk, u32 ost, u8 dep)
 	struct mm_blk_hdr *hdr = (struct mm_blk_hdr *)(mm.hdr_base + ((chunk*ost)/mm.ll));
 
 	hdr->dep = dep;
-	//mm_debug("hdr_base#0x%x\n", hdr_base);
 	if(((u32)(addr) + chunk) > mm.heap_base + mm.heap_size) {
 		mm_debug("Out of memory#%d\n", (u32)(addr) + chunk);
 		return NULL; 
@@ -580,10 +413,132 @@ void mm_free(void *addr)
 	chunk_ost = ((u32)addr - mm.heap_base);
 	ost = chunk_ost/ chunk;
 
-	mm_set_bit(ord, ost, MM_BUD_FREE);
+	bud_set_bit(&bud[ord], ost, MM_BUD_FREE);
 	mm_chk_childs(ord, ost, MM_BUD_FREE);
 	if(!mm_is_bud_used(ord, ost)) {
 		mm_chk_parent(ord, ost, MM_BUD_FREE, mm_merge);
 	}
 }
 
+int bud_create(const u32 size, const int ll)
+{
+
+}
+
+static int bud_get_real_size(const int _size, const int _ll)
+{
+	int size = 0, ll = 0, i = 0, dep = 0;
+	if(_ll<1 || _size<1)
+		return err_dbg(-1, "err\n");
+
+	dep = mm_get_dep(_size, mm.ll);
+	if(dep < 0)
+		return err_dbg(-4, "err\n");
+
+	size = _size;
+	ll = _ll;
+
+	u32 num[dep];
+
+	size -= sizeof(struct bitmaps)*dep;
+	
+	for(i=0; i<dep ; i++) {
+		num[i] = (((_size/ll) + (mm.bitmap_size-1)) / mm.bitmap_size)*BITMAP_DEF_BYTE;
+		ll *= 2;
+		size -= num[i];
+	}
+
+	size -= (_size/mm.ll)*sizeof(struct mm_blk_hdr);	
+
+	if(size < 0)
+		return err_dbg(-8, "size is too small, so that you don`t have any meta data about buddy\n");
+
+	return size; 
+}
+
+int mm_init(u64 heap_size)
+{
+	_mm_init(heap_size, 0, 0);
+}
+// RAM 사이즈에 대한 디텍은 BIOS 나 UEFI를 통해서 하는게 가장 좋다고 한다.
+// 이게 Memory Controller를 통해서 RAM 사이즈를 얻는 경우가 가장 좋다는거 같은데, BIOS 나 UEFI가 칩 벤더 레벨에서 알아서 이 정보를 가져와 주기 때문인 거 같다.
+int _mm_init(const u32 heap_size, const int llc, const int ulo)
+{
+	int i, j, size = 0, rmd = 0, real_size = 0;
+	u8 *bmp_base = NULL;
+	u32 ll = 0;
+
+	if(heap_size < MM_HEAP_MIN_SIZE)
+		return err_dbg(-1, "Heap memory isn`t insufficient size#0x%x\n", heap_size);
+
+	mm.org_size = heap_size;
+	mm.ml = MM_META_BASE;
+	mm.heap_meta_base = MM_HEAP_META_BASE;
+	mm.ll = (llc < 1) ? MM_ALLOC_LL : llc;
+
+	mm.bitmap_size = BITMAP_DEF_BIT;
+	
+	real_size = bud_get_real_size(heap_size, mm.ll);
+	if(real_size < 0)
+		err_dbg(-4, "Failed to calculate the heap size\n");	
+
+	mm.heap_size = real_size;
+
+	mm.dep = ulo < 1 ? mm_get_dep(mm.heap_size, mm.ll) : ulo;
+	mm.ul = mm.ll * power(2, mm.dep-1);
+
+	u32 num[mm.dep];
+	
+	// bitmaps management meta data
+	bud = (struct bitmaps *)mm.heap_meta_base;
+	
+	memset(bud, 0, sizeof(struct bitmaps) * mm.dep);
+	memset(num, 0, sizeof(num));	
+	
+	ll = mm.ll;
+   	bmp_base = (u8 *)(bud + mm.dep);
+	size = sizeof(struct bitmaps)*mm.dep;
+
+	mm_set_info("BUDDY BITMAPS MANAGEMENT", bud, size);
+
+	size = 0;	
+	for(i=0; i<mm.dep ; i++) {
+		num[i] = ((real_size/ll) + (mm.bitmap_size-1)) / mm.bitmap_size;
+		
+		bud[i].bmp.base = bmp_base;	
+		bud[i].num = real_size / ll;
+		bud[i].frees = bud[i].num;
+		bud[i].bmp.size = num[i];
+		bud[i].bmp.bit = mm.bitmap_size;		
+
+		memset(bud[i].bmp.base, 0, bud[i].bmp.size*(bud[i].bmp.bit/8));	
+		for(j=((real_size/ll)%mm.bitmap_size) ; j<mm.bitmap_size ; j++)
+			bitmap_set(&bud[i].bmp, (num[i]-1)*mm.bitmap_size+j, 1);
+
+		bmp_base += (bud[i].bmp.size*(bud[i].bmp.bit/8));
+		ll *= 2;
+		size += (bud[i].bmp.size*(bud[i].bmp.bit/8));
+	}
+
+	mm_set_info("BUDDY BITMAPS", bud[0].bmp.base, size);
+	
+	// bitmaps heap header meta data
+	mm.hdr_base = bud[0].bmp.base + size;
+	mm.hdr_size = (real_size/mm.ll) * sizeof(struct mm_blk_hdr);
+	
+	size = 0;	
+	size = mm.hdr_size;	
+
+	mm_set_info("BUDDY BITMAPS HEADER", mm.hdr_base, mm.hdr_size);
+
+	// heap base
+	mm.heap_base = (u32)(mm.hdr_base + mm.hdr_size);
+	mm.heap_meta_size = mm.heap_base - mm.heap_meta_base;
+
+	mm_set_info("KERNEL HEAP", mm.heap_base, mm.heap_size);
+
+	mm.rmd_size = heap_size - (mm.heap_size + mm.heap_meta_size); 
+	pool_init(mm.heap_base + mm.heap_size, mm.rmd_size);
+
+	return 0;
+}

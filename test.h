@@ -6,6 +6,7 @@
 #define STK_TEST
 #define STRING_TEST
 #define POOL_TEST
+#define BUD_TEST
 
 #include "type.h"
 #include "list.h"

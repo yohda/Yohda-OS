@@ -2,6 +2,7 @@
 #define _MM_H_
 
 #include "list.h"
+#include "bitmap.h"
 
 enum {
 	MM_UL 			= 0x01, // User Level
@@ -23,9 +24,9 @@ struct memory_layout {
 
 struct bitmaps {
 	u32 ord;
-	u32 len;
-	u32 *block;
-	//struct list_head *list;
+	u32 num;
+	u32 frees;
+	struct bitmap bmp;
 };
 
 // yohdaOS assumes that depth of buddy system is less than 255.

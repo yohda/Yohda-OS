@@ -1,6 +1,7 @@
 #include "bitmap.h"
 #include "mm.h"
 #include "debug.h"
+#include "error.h"
 
 #define BYTE_UNIT 		8
 
@@ -79,11 +80,29 @@ int bitmap_get_free(struct bitmap *bmp)
 
 	if(i == n)
 		return err_dbg(-4, "err\n");
-	
+
+	bits = bits+i;
 	for(j=0 ; j<bit ; j++) {
 		if(!(*bits>>j & 0x1))
 			break;
 	}
 
 	return i*bit+j;
+}
+
+int bitmap_get(struct bitmap *bmp, int ost)
+{
+	int bit = 0;
+	u32 *bits;
+
+	if(!bmp || !bmp->base) 
+		return err_dbg(-1, "err\n");
+
+	bits = (u32 *)bmp->base;
+	bit = bmp->bit;
+	
+	if(ost < 0)
+		return err_dbg(-EINVAL, "err\n");
+
+	return (*(bits+(ost/bit)) & (0x1<<(ost%bit))) ? 1 : 0;
 }
