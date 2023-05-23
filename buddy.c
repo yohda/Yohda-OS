@@ -48,28 +48,30 @@ struct bud_manager {
 
 	// memory info
 	u32 page_size;
-	u32 org_size;
+	s64 org_size;
 	u32 heap_ul_size;
 	u32 heap_meta_base;
-	u32 heap_meta_size;
+	s64 heap_meta_size;
 	u32 heap_base;
-	u32 heap_size;
-	u32 rmd_size;
+	s64 heap_size;
+	s64 rmd_size;
 };
 
 struct bitmaps *bud;
 struct bud_manager bm;
 
 static void bud_show_info();
-static int bud_init(const void *base, const int size);
+static int bud_init(const void *base, const s64 size);
 static void bud_free(const void* addr);
 static void *bud_alloc(const int size);
+static int bud_rndup(const int size);
 
 struct mmif pm_if = {
 	.mm_init = bud_init,	
 	.mm_free = bud_free,
 	.mm_alloc = bud_alloc,
 	.show_info = bud_show_info,
+	.get_chunk = bud_rndup,
 };
 
 static void bud_show_info()
@@ -91,9 +93,10 @@ static void bud_show_info()
 	}
 }
 
-static int bud_get_chunk(int _dep)
+static int bud_get_chunk(const int _dep)
 {
 	u32 chunk = bm.ll, dep = 0;
+	
 	if(_dep < 0)
 		return err_dbg(-1, "err\n");		
 	
@@ -104,7 +107,7 @@ static int bud_get_chunk(int _dep)
 	return chunk;
 }
 
-static int bud_get_dep(const int heap_size, const int _ll)
+static int bud_get_dep(const s64 heap_size, const int _ll)
 {
 	int i;
 	int ll;
@@ -119,14 +122,17 @@ static int bud_get_dep(const int heap_size, const int _ll)
 	for(i=0 ; ll<=heap_size ; i++) {
 		if(heap_size/ll < BUD_MIN_CHUNK)	
 			return i;
+		
+		if(i >= BUD_MAX_ORD)
+			return i;
 
 		ll *= 2;
 	}
-
-	return i>=BUD_MAX_ORD ? BUD_MAX_ORD : i;
+	
+	return i;
 }
 
-static int bud_rndup(u32 size)
+static int bud_rndup(const int size)
 {
 	u32 block = bm.ll, i = 0;
 	u32 dep = bm.dep;
@@ -175,7 +181,7 @@ static int bud_set_bit(struct bitmaps *bud, int ost, bool f)
 		return err_dbg(-EINVAL, "Invalid Parameter(ost)#%d\n", ost);
 
 	if(f != BUD_FREE && f != BUD_USED)	
-		err_dbg(-EINVAL, "Invalid Parameter(f)#%d\n", f);
+		return err_dbg(-EINVAL, "Invalid Parameter(f)#%d\n", f);
 
 	err = bitmap_get(&bud->bmp, ost);
 	if(err < 0)
@@ -373,9 +379,11 @@ static void bud_free(const void *addr)
 	}
 }
 
-static int bud_get_real_size(const int _size, const int _ll)
+static s64 bud_get_real_size(const s64 _size, const int _ll)
 {
-	int size = 0, ll = 0, i = 0, dep = 0;
+	int ll = 0, i = 0, dep = 0;
+	s64 size = 0;
+
 	if(_ll<1 || _size<1)
 		return err_dbg(-1, "err\n");
 
@@ -404,10 +412,11 @@ static int bud_get_real_size(const int _size, const int _ll)
 	return size; 
 }
 
-static int _bud_init(const void* base, const int heap_size, const int llc, const int ulo)
+static int _bud_init(const void* base, const s64 heap_size, const int llc)
 {
-	int i, j, size = 0, rmd = 0, real_size = 0;
+	int i, j, rmd = 0;
 	u8 *bmp_base = NULL;
+	s64 size = 0, data_size = 0; 
 	u32 ll = 0;
 	
 	if(!base)
@@ -416,7 +425,7 @@ static int _bud_init(const void* base, const int heap_size, const int llc, const
 	if(heap_size < MM_HEAP_MIN_SIZE)
 		return err_dbg(-4, "Heap memory isn`t insufficient size#0x%x\n", heap_size);
 
-	if(llc<1 || ulo<0)
+	if(llc < 1)
 		return err_dbg(-8, "Need to modify the appriciate low limit chank size");
 
 	bm.org_size = heap_size;
@@ -425,16 +434,15 @@ static int _bud_init(const void* base, const int heap_size, const int llc, const
 
 	bm.bitmap_size = BITMAP_DEF_BIT;
 	
-	real_size = bud_get_real_size(heap_size, bm.ll);
-	if(real_size < 0)
-		err_dbg(-4, "Failed to calculate the heap size\n");	
+	data_size = bud_get_real_size(heap_size, bm.ll);
+	if(data_size < 0)
+		return err_dbg(-4, "Failed to calculate the heap size\n");	
 
-	bm.heap_size = real_size;
+	bm.heap_size = data_size;
 	bm.dep = bud_get_dep(bm.heap_size, bm.ll);
 	if(bm.dep < 0)
 		return err_dbg(-12, "error to calculate buddy depth\n");
 	
-	bm.dep = bm.dep >= ulo ? ulo : bm.dep;
 	bm.ul = bm.ll * power(2, bm.dep-1);
 
 	u32 num[bm.dep];
@@ -453,16 +461,16 @@ static int _bud_init(const void* base, const int heap_size, const int llc, const
 
 	size = 0;	
 	for(i=0; i<bm.dep ; i++) {
-		num[i] = ((real_size/ll) + (bm.bitmap_size-1)) / bm.bitmap_size;
+		num[i] = ((data_size/ll) + (bm.bitmap_size-1)) / bm.bitmap_size;
 		
 		bud[i].bmp.base = bmp_base;	
-		bud[i].num = real_size / ll;
+		bud[i].num = data_size / ll;
 		bud[i].frees = bud[i].num;
 		bud[i].bmp.size = num[i];
 		bud[i].bmp.bit = bm.bitmap_size;		
 
 		memset(bud[i].bmp.base, 0, bud[i].bmp.size*(bud[i].bmp.bit/8));	
-		for(j=((real_size/ll)%bm.bitmap_size) ; j<bm.bitmap_size ; j++)
+		for(j=((data_size/ll)%bm.bitmap_size) ; j<bm.bitmap_size ; j++)
 			bitmap_set(&bud[i].bmp, (num[i]-1)*bm.bitmap_size+j, 1);
 
 		bmp_base += (bud[i].bmp.size*(bud[i].bmp.bit/8));
@@ -474,7 +482,7 @@ static int _bud_init(const void* base, const int heap_size, const int llc, const
 	
 	// bitmaps heap header meta data
 	bm.hdr_base = bud[0].bmp.base + size;
-	bm.hdr_size = (real_size/bm.ll) * sizeof(struct bud_blk_hdr);
+	bm.hdr_size = (data_size/bm.ll) * sizeof(struct bud_blk_hdr);
 	
 	size = 0;	
 	size = bm.hdr_size;	
@@ -492,7 +500,7 @@ static int _bud_init(const void* base, const int heap_size, const int llc, const
 	return 0;
 }
 
-int bud_init(const void *base, const int heap_size)
+int bud_init(const void *base, const s64 heap_size)
 {
-	_bud_init(base, heap_size, 2048, 11);
+	_bud_init(base, heap_size, 2048);
 }

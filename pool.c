@@ -2,72 +2,76 @@
 #include "pool.h"
 #include "list.h"
 #include "mm.h"
+#include "mmi.h"
 #include "debug.h"
 #include "bitmap.h"
 #include "error.h"
+#include "math.h"
 
 #define POOL_HEADER_SIZE 		(sizeof(struct pool_header))	
 
-static struct pool pools[] = {
-	{
-		.chunk = 16,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 16),
-	},
-	{
-		.chunk = 32,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 32), 
-	},
-	{
-		.chunk = 64,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 64), 
-	},
-	{
-		.chunk = 128,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 128), 
-	},
-	{
-		.chunk = 256,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 256), 
-	},
-	{
-		.chunk = 512,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 512), 
-	},
-	{
-		.chunk = 1024,
-		.ll = POOL_HEADER_SIZE + (POOL_CHUNK_LL_NUM * 1024), 
-	},
-};
+static int pl_init(const void *base, const s64 size);
+static void *pl_alloc(const int size);
+static void pl_free(const void *addr);
+static void pl_show_info(void);
+static int pl_get_chunk(const int size);
 
-#define POOL_NUMBER 			(sizeof(pools)/sizeof(struct pool))
+struct mmif sm_if = {
+	.mm_init = pl_init,	
+	.mm_free = pl_free,
+	.mm_alloc = pl_alloc,
+	.show_info = pl_show_info,
+	.get_chunk = pl_get_chunk,
+};
 
 struct mm_pool {
 	u8 *base;   // Memory pool base address
-	int size;	// Available allocation size of memory pool
+	s64 size;	// Available allocation size of memory pool
 	u8 *data_base;
 	int llc;
 	int ulc;
 	u32 rmd;
+	s64 meta_size;
+	s64 data_size;
+	
+	// memory pool number
+	int num;
 };
 
-struct mm_pool pmm;
+static struct mm_pool pmm;
+static struct pool *pools;
 
-static int pool_calc_size(const int size)
+static void pl_show_info(void)
 {
-	int i, rmd = 0;
-	
+	int i;
+	for(i=0 ; i<pmm.num ; i++) {
+		if(!pools[i].size) {
+			pl_debug("Any memory is not allocated to pools[%d]\n", i);
+			continue;	
+		}
+
+		pl_debug("[%d] base address#0x%x\n", i, pools[i].base);
+		pl_debug("chunk#%d\n", pools[i].chunk);
+		pl_debug("size#%d\n", pools[i].size);
+		pl_debug("frees#%d\n", pools[i].frees);
+	}
+}
+
+static int pool_calc_size(const s64 size)
+{
+	int i;
+	s64 rmd = 0;
+
 	if(size<1)
 		return err_dbg(-1, "err\n");
 
 	rmd = size;
 	for(i=0 ; rmd>=pools[0].ll ; i++) {
-		if((rmd-pools[i%POOL_NUMBER].ll) >= 0) {
-			pools[i%POOL_NUMBER].size += pools[i%POOL_NUMBER].ll;
-			rmd -= pools[i%POOL_NUMBER].ll;	
+		if((rmd-pools[i%pmm.num].ll) >= 0) {
+			pools[i%pmm.num].size += pools[i%pmm.num].ll;
+			rmd -= pools[i%pmm.num].ll;	
 		}
 	}
-	
-	pl_debug("rmd#%d\n", rmd);
 
 	return rmd;
 }
@@ -79,7 +83,7 @@ static int pool_get_ord(u32 chunk)
 	if(chunk<size || chunk>pmm.ulc)
 		return err_dbg(-EINVAL, "Invalid Parameter#%d\n", chunk);
 
-	for(i=0 ; i<POOL_NUMBER ; i++) {
+	for(i=0 ; i<pmm.num ; i++) {
 		if(chunk == size)
 			return i;
 
@@ -93,7 +97,7 @@ static int pool_get_id(u32 addr)
 {
 	int i;
 
-	for(i=0 ; i<POOL_NUMBER ; i++) {
+	for(i=0 ; i<pmm.num ; i++) {
 		u32 diff = addr - (u32)pools[i].base;	
 		if(diff < pools[i].size)
 			return i;
@@ -102,14 +106,14 @@ static int pool_get_id(u32 addr)
 	return -1;
 }
 
-static int pool_get_chunk(int size)
+static int pl_get_chunk(const int size)
 {
 	u32 block = pools[0].chunk, i = 0;
 
 	if(size<1 || size>pmm.ulc)
 		return err_dbg(-EINVAL, "Invalid parameter#%d\n", size);
 	
-	for(i = 0 ; i < POOL_NUMBER; i++) {
+	for(i = 0 ; i < pmm.num; i++) {
 		if(size <= block) {
 			return block;
 		}
@@ -119,7 +123,7 @@ static int pool_get_chunk(int size)
 	return -1;
 }
 
-void *pl_alloc(int size)
+static void *pl_alloc(const int size)
 {
 	int chunk = 0 , handle = 0, id = -1, next = 0;
 	void *addr = NULL;
@@ -127,7 +131,7 @@ void *pl_alloc(int size)
 	if(size < 1)
 		return err_dbg(-1, "Invalid Parameter#%d\n", size);
 	
-	chunk = pool_get_chunk(size);
+	chunk = pl_get_chunk(size);
 	if(chunk < 0)
 		return err_dbg(chunk, "err\n");
 
@@ -142,10 +146,12 @@ void *pl_alloc(int size)
 	else
 		pools[id].head = (u8 *)(next);	
 
+	(pools[id].frees)--;
+
 	return addr;
 }
 
-void pl_free(void *addr)
+static void pl_free(const void *addr)
 {
 	struct pool_header *hdr = NULL;
 	int id = -1;
@@ -163,42 +169,98 @@ void pl_free(void *addr)
 	
 	hdr->next_addr = pools[id].head;
 	pools[id].head = hdr;
+
+	(pools[id].frees)++;
 }
 
-int pool_init(const int base, const int size)
+static int pl_get_data_size(const s64 size)
 {
-	int i = 0, addr = 0, rmd = 0;
+	s64 data_size = 0;
+	int i;
+
+	if(size < 1)
+		return err_dbg(-1, "err\n");	
+
+	if(pmm.num < 1)
+		return err_dbg(-4, "err\n");		
+
+	data_size = size - sizeof(struct pool)*pmm.num;
+
+	return data_size;
+}
+
+s64 pl_get_init_size(void)
+{
+	int i = 0, llc = 0, ulc = 0, num = 0;
+	s64 size = 0;
+		
+	llc = mm_get_sec_llc();
+	ulc = mm_get_sec_ulc();
+	num = (log(2, ulc)-log(2, llc))+1;
+	
+	size = sizeof(struct pool)*num;
+	for(i=0 ; i<num ; i++) {
+		size += (POOL_HEADER_SIZE+llc) * POOL_CHUNK_LL_NUM;
+		llc *= 2;	
+	}
+
+	return size; 
+}
+
+static int pl_init(const void *base, const s64 size)
+{
+	int i = 0, rmd = 0, err = -1, llc = 0;
 	struct pool *pool = NULL;
+	u8 *data_addr = NULL;
+	s64 data_size = 0;
 
-	if((base<0) || (size<1))
-		return err_dbg(-1, "err\n");
+	if(!base)
+		return err_dbg(-1, "A base address of memory pool is null.\n");
 
-	pl_debug("pool base#0x%x\n", base);
+	if(size < 1)
+		return err_dbg(-4, "The size allcating a memory pool is too small#%d\n", size);
 
-	addr = base;
 	pmm.base = (u8 *)base;
 	pmm.size = size;
-	pmm.llc = pools[0].chunk; 
-	pmm.ulc = pools[POOL_NUMBER-1].chunk;
+	pmm.llc = mm_get_sec_llc();
+	pmm.ulc = mm_get_sec_ulc();
+	pmm.num = (log(2, pmm.ulc)-log(2, pmm.llc))+1;
 
-	rmd = pool_calc_size(size);
-	if(rmd < 0)
-		err_dbg(-4, "err\n");
+	data_size = pl_get_data_size(size);
+	if(data_size < 0)
+		return err_dbg(-6, "err\n");
+			
+	pmm.size = size;
+	pmm.data_size = data_size;
+
+	llc = pmm.llc;
+	pools = (struct pool *)base;
+	memset(pools, 0, sizeof(struct pool)*pmm.num);	
+	for(i=0 ; i<pmm.num ; i++) {
+		pools[i].chunk = llc;
+		pools[i].ll = (POOL_HEADER_SIZE+llc) * POOL_CHUNK_LL_NUM;
+
+		llc *= 2;	
+	}
 	
-	pl_debug("rmd#%d\n", rmd);
+	rmd = pool_calc_size(data_size);
+	if(rmd < 0)
+		err_dbg(-8, "err\n");
 
 	if(rmd < 0)
-		err_dbg(-4, "err\n");
+		err_dbg(-12, "err\n");
 
-	for(i=0 ; i<POOL_NUMBER ; i++) {
-		pools[i].base = (u8 *)addr;
+	data_addr = base + sizeof(struct pool)*pmm.num;
+	for(i=0 ; i<pmm.num ; i++) {
+		pools[i].base = (u8 *)data_addr;
 		pools[i].head = pools[i].base;
-		addr += pools[i].size;			
+		pools[i].frees = pools[i].size / (pools[i].chunk + POOL_HEADER_SIZE);
+		data_addr += pools[i].size;			
 
 		memset(pools[i].base, 0, pools[i].size);
 
 		pl_debug("base#0x%x\n", pools[i].base);
 	}
 
-	return 0;
+	return rmd;
 }

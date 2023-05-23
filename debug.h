@@ -15,14 +15,28 @@
 #define ahci_debug(fmt, ...) 
 #endif
 
-#define MM_DEBUGx
+#define MM_DEBUG
 #ifdef MM_DEBUG
 #define mm_debug(fmt, ...) kPrintf("[f:%s][l:%d]" fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
 #else
 #define mm_debug(fmt, ...) 
 #endif
 
-#define FAT_DEBUG
+#define PL_DEBUG
+#ifdef PL_DEBUG
+#define pl_debug(fmt, ...) kPrintf("[f:%s][l:%d]" fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
+#else
+#define pl_debug(fmt, ...) 
+#endif
+
+#define BUD_DEBUGx
+#ifdef BUD_DEBUG
+#define bud_debug(fmt, ...) kPrintf("[f:%s][l:%d]" fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
+#else
+#define bud_debug(fmt, ...) 
+#endif
+
+#define FAT_DEBUGx
 #ifdef FAT_DEBUG
 #define fat_debug(fmt, ...) kPrintf("[f:%s][l:%d]" fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
 #else

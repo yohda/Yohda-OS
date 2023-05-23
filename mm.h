@@ -9,6 +9,11 @@ enum {
 	MM_KL 			= 0x02, // Kernel Level
 	MM_FIX 			= 0x04, // No Swap
 };
+
+enum {
+	MM_PRI = 0,
+	MM_SEC, 
+};
 // In yohdaOS, it assumes size of RAM is 4GB.
 // So, if you assumes that size of order-0-block is 2KB, the number of total chunks are 0x200000.
 // But, those is managed from bitmaps. So, those need to be devided from 32 becuase size of bitmap is 32.
@@ -22,27 +27,27 @@ struct memory_layout {
 	u32 size;
 };
 
-struct bitmaps {
-	u32 ord;
-	u32 num;
-	u32 frees;
-	struct bitmap bmp;
-};
-
-// yohdaOS assumes that depth of buddy system is less than 255.
-// Actuallly, to assign size 2^255 per page is impossible.
-// If it is larger than 255, it need to change the way to manage memory.   
-struct mm_blk_hdr {
-	u8 dep;	
-};
-
-struct mm_blk {
-	struct mm_blk_hdr hdr;
-	void *addr;
+struct mm {
+	void *base;	// primary memory management base address
+	s64 size;
+	int llc;
+	int ulc;
 };
 
 int mm_init();
 void* mm_alloc(u32 size, u32 flag);
 void mm_free(void *addr);
+
+int mm_where_is_addr(const void *addr);
+s64 mm_get_pri_size(void);
+int mm_set_pri_size(const s64 size);
+int mm_set_pri_base(const void *base);
+s64 mm_get_sec_size(void);
+int mm_set_sec_size(const s64 size);
+int mm_set_sec_base(const void *base);
+int mm_get_pri_ulc(void);
+int mm_get_pri_llc(void);
+int mm_get_sec_ulc(void);
+int mm_get_sec_llc(void);
 
 #endif

@@ -414,23 +414,23 @@ void bst_test_search_noexist_name()
 extern struct mmif sm_if;
 void pool_test()
 {
-	mm_init(1*1023*891*913);
+	sm_if.mm_init(0x2000000, 175*1024);
 	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10;
 
 	// Start from here, allocation for pool memeory
 	p1 = sm_if.mm_alloc(15);
 	pl_debug("0x%x\n", p1);
 
-	p2 = sm_if.mm_alloc(7);
+	p2 = sm_if.mm_alloc(48);
 	pl_debug("0x%x\n", p2);
 
-	p3 = sm_if.mm_alloc(3);
+	p3 = sm_if.mm_alloc(27);
 	pl_debug("0x%x\n", p3);
 
 	p4 = sm_if.mm_alloc(12);
 	pl_debug("0x%x\n", p4);
 
-	p5 = sm_if.mm_alloc(1);
+	p5 = sm_if.mm_alloc(92);
 	pl_debug("0x%x\n", p5);
 
 /////////////////////////////////////
@@ -587,7 +587,7 @@ void bud_test()
 #ifdef MMI_TEST
 void mmi_test()
 {
-	mmi_init(0x2000000, 175*1024);
+	mmi_init(0x2000000, 175*1024*1024*83);
 
 	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
 

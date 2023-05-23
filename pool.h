@@ -1,6 +1,8 @@
 #ifndef _POOL_H_
 #define _POOL_H_
 
+#include "test.h"
+
 #define POOL_CHUNK_LL_NUM		(128)
 
 struct pool_header {
@@ -14,8 +16,5 @@ struct pool {
 	u32 chunk;				// each pool chunk size including header(next address)
 	int ll;					// low limit size of pool
 };
-
-void *pl_alloc(int size);
-void pl_free(void *addr);
 
 #endif
