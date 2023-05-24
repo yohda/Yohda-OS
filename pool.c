@@ -110,9 +110,12 @@ static int pl_get_chunk(const int size)
 {
 	u32 block = pools[0].chunk, i = 0;
 
-	if(size<1 || size>pmm.ulc)
+	if(size < 1)
 		return err_dbg(-EINVAL, "Invalid parameter#%d\n", size);
-	
+
+	if(size > pmm.ulc)
+		return 0;
+
 	for(i = 0 ; i < pmm.num; i++) {
 		if(size <= block) {
 			return block;
@@ -226,6 +229,9 @@ static int pl_init(const void *base, const s64 size)
 	pmm.ulc = mm_get_sec_ulc();
 	pmm.num = (log(2, pmm.ulc)-log(2, pmm.llc))+1;
 
+	mm_set_sec_base(base);
+	mm_set_sec_size(size);
+
 	data_size = pl_get_data_size(size);
 	if(data_size < 0)
 		return err_dbg(-6, "err\n");
@@ -258,8 +264,6 @@ static int pl_init(const void *base, const s64 size)
 		data_addr += pools[i].size;			
 
 		memset(pools[i].base, 0, pools[i].size);
-
-		pl_debug("base#0x%x\n", pools[i].base);
 	}
 
 	return rmd;

@@ -587,15 +587,22 @@ void bud_test()
 #ifdef MMI_TEST
 void mmi_test()
 {
-	mmi_init(0x2000000, 175*1024*1024*83);
+	mmi_init(0x2000000, 1*1023*1024*815);
 
 	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
+	void *s1, *s2, *s3, *s4;
 
-	p1 = yalloc(921, MM_KL);
-	mm_debug("1-0x%x\n", p1);
-
+	p1 = yalloc(1921, MM_KL);
+	mm_debug("p1-0x%x\n", p1);
+	
+	s1 = yalloc(921, MM_KL);
+	mm_debug("s1-0x%x\n", s1);
+ 
 	p2 = yalloc(3293, MM_KL);
 	mm_debug("2-0x%x\n", p2);
+
+	s2 = yalloc(23, MM_KL);
+	mm_debug("2-0x%x\n", s2);
 
 	p3 = yalloc(18293, MM_KL);
 	//mm_debug("3-0x%x\n", p3);
@@ -603,6 +610,9 @@ void mmi_test()
 	p4 = yalloc(1208, MM_KL);
 	mm_debug("4-0x%x\n", p4);
 
+	s3 = yalloc(233, MM_KL);
+	mm_debug("4-0x%x\n", s3);
+	
 	p5 = yalloc(13029, MM_KL);
 	mm_debug("5-0x%x\n", p5);
 
@@ -661,6 +671,9 @@ void mmi_test()
 /////////////////////////////////////
 	// Start from here, free pool de-allocation
 
+	yfree(s1);
+	yfree(s2);
+	yfree(s3);
 	yfree(p20);
 	yfree(p18);
 	yfree(p17);
@@ -676,8 +689,8 @@ void mmi_test()
 	yfree(p6);
 	yfree(p4);
 	yfree(p2);
-	//yfree(p1);
-	
+	yfree(p1);
+
 	return ;
 }
 #endif

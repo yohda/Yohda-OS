@@ -28,16 +28,19 @@ void mmi_show_info(void)
 void *yalloc(const s64 size)
 {
 	void *addr = NULL;
-	int err = -1;
-	
+	int err = -1, type = -1;
+
 	if(size < 1)
 		return err_dbg(-1, "err\n");
 
-	addr = sm_if.mm_alloc(size);
-	if(!addr)
+	type = sm_if.get_chunk(size);
+	if(type > 0)
+		addr = sm_if.mm_alloc(size);
+	else if(type == 0)
+		addr = pm_if.mm_alloc(size);
+	else
 		return err_dbg(-4, "err\n");
-
-	addr = pm_if.mm_alloc(size);
+	
 	if(!addr)
 		return err_dbg(-8, "err\n");
 	

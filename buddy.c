@@ -137,10 +137,11 @@ static int bud_rndup(const int size)
 	u32 block = bm.ll, i = 0;
 	u32 dep = bm.dep;
 
-	if(size < 1 || size > bm.heap_size) {
-		bud_debug("Invalid parameter#%d\n", size);
-		return -EINVAL;
-	}
+	if(size < 1 || size > bm.heap_size)
+		return err_dbg(-EINVAL, "Invalid parameter#%d\n", size);
+
+	if(size <= mm_get_sec_ulc() && size > 1) 
+		return err_dbg(0, "This size is not handled here#%d\n", size);
 
 	for(i = 0 ; i < dep; i++) {
 		if(size <= block) {
@@ -325,7 +326,7 @@ static void *bud_alloc(const int size)
 	}
 
 	chunk = bud_rndup(size);
-	if(chunk < bm.ll)
+	if(chunk < 0)
 		return NULL;	
 
 	ord = bud_get_ord(chunk);
@@ -497,7 +498,7 @@ static int _bud_init(const void* base, const s64 heap_size, const int llc)
 
 	bm.rmd_size = heap_size - (bm.heap_size + bm.heap_meta_size); 
 
-	return 0;
+	return bm.rmd_size;
 }
 
 int bud_init(const void *base, const s64 heap_size)
