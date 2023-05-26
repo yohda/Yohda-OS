@@ -694,3 +694,114 @@ void mmi_test()
 	return ;
 }
 #endif
+
+#ifdef LAZY_BUD_TEST
+void lazy_buddy_test()
+{
+	mmi_init(0x2000000, 1*1023*1024*815);
+
+	void *p1, *p2, **p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
+	//u8 **p3;
+
+	p1 = pm_if.mm_alloc(1921);
+	mm_debug("1-0x%x\n", p1);
+
+	p2 = pm_if.mm_alloc(18293);
+	mm_debug("2-0x%x\n", p2);
+
+	int i;
+	for(i=0 ; i<180; i++) {
+		p3[i] = pm_if.mm_alloc(1893);
+		mm_debug("3-0x%x\n", p3[i]);
+	}
+
+	p4 = pm_if.mm_alloc(1921);
+	mm_debug("1-0x%x\n", p1);
+
+	for(i=0 ; i<180; i++) {
+		pm_if.mm_free(p3[i]);
+	}
+
+	p5 = pm_if.mm_alloc(24932);
+	mm_debug("4-0x%x\n", p4);
+
+	return ;
+	
+	p5 = yalloc(13029, MM_KL);
+	mm_debug("5-0x%x\n", p5);
+
+/////////////////////////////////////////////////////////
+
+	p6 = yalloc(7829, MM_KL);
+	mm_debug("6-0x%x\n", p6);
+
+	p7 = yalloc(15273, MM_KL);
+	mm_debug("7-0x%x\n", p7);
+
+	p8 = yalloc(210293, MM_KL);
+	//mm_debug("8-0x%x\n", p8);
+
+	p9 = yalloc(15273, MM_KL);
+	mm_debug("9-0x%x\n", p9);
+
+	p10 = yalloc(NULL, MM_KL);
+	//mm_debug("10-0x%x\n", p10);
+
+
+////////////////////////////////////////////////////////////
+
+
+	p11 = yalloc(15273, MM_KL);
+	mm_debug("11-0x%x\n", p11);
+	
+	p12 = yalloc(15273, MM_KL);
+	mm_debug("12-0x%x\n", p12);
+	
+	p13 = yalloc(15273, MM_KL);
+	mm_debug("13-0x%x\n", p13);
+
+	p14 = yalloc(15273, MM_KL);
+	mm_debug("14-0x%x\n", p14);
+
+	p15 = yalloc(15273, MM_KL);
+	mm_debug("15-0x%x\n", p15);
+
+////////////////////////////////////////////////////
+
+	p16 = yalloc(15273, MM_KL);
+	mm_debug("16-0x%x\n", p16);
+
+	p17 = yalloc(7382, MM_KL);
+	mm_debug("17-0x%x\n", p17);
+
+	p18 = yalloc(1832, MM_KL);
+	mm_debug("18-0x%x\n", p18);
+
+	p19 = yalloc(3920, MM_KL);
+	mm_debug("19-0x%x\n", p19);
+	
+	p20 = yalloc(1832, MM_KL);
+	mm_debug("20-0x%x\n", p20);
+/////////////////////////////////////
+	// Start from here, free pool de-allocation
+
+	yfree(p20);
+	yfree(p18);
+	yfree(p17);
+	yfree(p16);
+	yfree(p15);
+	yfree(p14);
+	yfree(p13);
+	yfree(p12);
+	yfree(p11);
+	yfree(p9);
+	yfree(p7);
+	yfree(p5);
+	yfree(p6);
+	yfree(p4);
+	yfree(p2);
+	yfree(p1);
+
+	return ;
+}
+#endif

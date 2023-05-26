@@ -3,6 +3,19 @@
 
 #include "type.h"
 #include "bitmap.h"
+#include "list.h"
+
+struct lazy_buddy {
+	struct list_node list;	
+	int batch;
+	int wmk;
+	int num;	
+};
+
+struct lazy_page {
+	struct list_node node;
+	void *addr;	
+};
 
 struct bitmaps {
 	u32 ord;

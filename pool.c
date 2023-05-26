@@ -113,9 +113,6 @@ static int pl_get_chunk(const int size)
 	if(size < 1)
 		return err_dbg(-EINVAL, "Invalid parameter#%d\n", size);
 
-	if(size > pmm.ulc)
-		return 0;
-
 	for(i = 0 ; i < pmm.num; i++) {
 		if(size <= block) {
 			return block;

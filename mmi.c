@@ -33,14 +33,12 @@ void *yalloc(const s64 size)
 	if(size < 1)
 		return err_dbg(-1, "err\n");
 
-	type = sm_if.get_chunk(size);
-	if(type > 0)
-		addr = sm_if.mm_alloc(size);
-	else if(type == 0)
+	if(size >= mm_get_pri_llc()) {
 		addr = pm_if.mm_alloc(size);
-	else
-		return err_dbg(-4, "err\n");
-	
+	} else {
+		addr = sm_if.mm_alloc(size);
+	} 
+
 	if(!addr)
 		return err_dbg(-8, "err\n");
 	

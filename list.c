@@ -70,4 +70,23 @@ struct list_node *list_del(struct list_node *head, struct list_node *node)
 	return node;
 }
 
+// This function returns a first list_node with deleteing it.
+struct list_node *list_get(struct list_node *head)
+{
+	struct list_node *node;
+	if(head == NULL)
+		return NULL;
+
+	if(head->prev == head->next)
+		return NULL;
+
+	node = head->next;
+
+	head->next = head->next->next;
+	head->next->next->prev = head;
+
+	return node;	
+}
+		
+			
 

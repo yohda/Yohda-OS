@@ -8,6 +8,7 @@
 #define PL_TEST
 #define BUD_TEST
 #define MMI_TEST
+#define LAZY_BUD_TEST
 
 #include "type.h"
 #include "list.h"

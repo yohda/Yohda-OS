@@ -15,6 +15,7 @@ void list_init_head(struct list_node *head);
 struct list_node *list_add_head(struct list_node *head, struct list_node *new);
 struct list_node *list_add(struct list_node *head, struct list_node *new);
 struct list_node *list_del(struct list_node *head, struct list_node *node);
+struct list_node *list_get(struct list_node *head);
 void list_sort();
 
 #endif /*__LIST_H__*/

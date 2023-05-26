@@ -7,6 +7,7 @@
 #include "debug.h"
 #include "pool.h"
 #include "bitmap.h"
+#include "math.h"
 
 /* 64-bit yohdaOS Memory Layout */
 #define MM_BASE				(0x2000000) 				// 32MB
@@ -58,11 +59,14 @@ struct bud_manager {
 };
 
 struct bitmaps *bud;
+struct lazy_buddy lazy; 
 struct bud_manager bm;
 
 static void bud_show_info();
 static int bud_init(const void *base, const s64 size);
+static void _bud_free(const void *addr);
 static void bud_free(const void* addr);
+static void *_bud_alloc(const int size);
 static void *bud_alloc(const int size);
 static int bud_rndup(const int size);
 
@@ -139,9 +143,6 @@ static int bud_rndup(const int size)
 
 	if(size < 1 || size > bm.heap_size)
 		return err_dbg(-EINVAL, "Invalid parameter#%d\n", size);
-
-	if(size <= mm_get_sec_ulc() && size > 1) 
-		return err_dbg(0, "This size is not handled here#%d\n", size);
 
 	for(i = 0 ; i < dep; i++) {
 		if(size <= block) {
@@ -315,7 +316,61 @@ static void *bud_encode(u32 chunk, u32 ost, u8 dep)
 	return addr;
 }
 
+void *bud_lazy_alloc(const int size)
+{
+	struct list_node *node = NULL;
+	struct lazy_page *page = NULL;
+	int i;
+
+	if(!lazy.num) {
+		int batch = lazy.batch; 	
+		struct lazy_page *pages = _bud_alloc(sizeof(struct lazy_page)*batch);
+		if(!pages)
+			return err_dbg(NULL, "err\n");
+
+		for(i=0 ; i<batch ; i++) {
+			pages[i].addr = _bud_alloc(MM_PAGE_SIZE);
+			if(!pages[i].addr)
+				return err_dbg(NULL, "err\n");
+
+			list_add(&lazy.list, &pages[i].node); 					
+			lazy.num++;
+		}
+	} 
+	
+	node = list_get(&lazy.list);
+	if(!node)
+		return err_dbg(NULL, "err\n");
+
+	page = container_of(node, struct lazy_page, node);
+	if(!page)
+		return err_dbg(NULL, "err\n");
+
+	lazy.num--;
+
+	return page->addr;
+}
+
 static void *bud_alloc(const int size)
+{
+	void *addr = NULL;
+
+	if(size < 1)
+		return err_dbg(-EINVAL , "Invalid Paramter#%d\n", size);	
+
+	if(size > MM_PAGE_SIZE) {
+		addr = _bud_alloc(size);
+	} else {
+		addr = bud_lazy_alloc(size);
+	}
+	
+	if(!addr)
+		return err_dbg(-4 , "err\n");	
+
+	return addr;	
+}
+
+static void *_bud_alloc(const int size)
 {
 	int chunk, ord, ost;
 	void *addr;
@@ -354,15 +409,72 @@ static struct bud_blk_hdr *bud_decode(void *addr)
 	return hdr;
 }
 
+int bud_lazy_free(const void *addr)
+{
+	struct lazy_page *lp;	
+	if(!addr)
+		return err_dbg(-1, "err\n");
+	
+	lp = _bud_alloc(sizeof(struct lazy_page));
+	if(!lp)
+		return err_dbg(-4, "err\n");
+
+	lp->addr = addr;	
+
+	list_add(&lazy.list, &lp->node); 
+	lazy.num++;
+
+	if(lazy.num > lazy.wmk) {
+		int batch = lazy.batch; 	
+		struct lazy_page *page; 
+		struct list_node *node;
+
+		while(batch--) {
+			node = list_get(&lazy.list);
+			if(!node)
+				return err_dbg(-8, "err\n");
+
+			page = container_of(node, struct lazy_page, node);
+			if(!page)
+				return err_dbg(-12, "err\n");
+
+			_bud_free(page->addr);
+		
+			lazy.num--;		
+		}	
+	}	
+
+	return 0;
+}
+
 static void bud_free(const void *addr)
 {
 	struct bud_blk_hdr *hdr;
-	u32 chunk_ost, chunk, ost, ord;
+	int chunk, ost, ord;
 
-	if(!addr || (bm.heap_base > (u32)addr)) {
-		bud_debug("Invalid parameter#0x%x\n", addr);
-		return -EINVAL;
+	if(!addr || (bm.heap_base > (u32)addr))
+		return err_dbg(-EINVAL, "Invalid parameter#0x%x\n", addr);
+
+	hdr = bud_decode(addr);	
+	ord = hdr->dep;
+	chunk = bud_get_chunk(hdr->dep);
+	if(chunk < 0)
+		return err_dbg(-12, "err\n");
+
+	if(chunk <= MM_PAGE_SIZE) {
+		bud_lazy_free(addr);
+	} else {
+		_bud_free(addr);
 	}
+}
+
+static void _bud_free(const void *addr)
+{
+	struct bud_blk_hdr *hdr;
+	int chunk_ost, chunk, ost, ord;
+
+	if(!addr || (bm.heap_base > (u32)addr))
+		return err_dbg(-EINVAL, "Invalid parameter#0x%x\n", addr);
 
 	hdr = bud_decode(addr);	
 	ord = hdr->dep;
@@ -497,6 +609,12 @@ static int _bud_init(const void* base, const s64 heap_size, const int llc)
 	//mm_set_info("KERNEL HEAP", bm.heap_base, bm.heap_size);
 
 	bm.rmd_size = heap_size - (bm.heap_size + bm.heap_meta_size); 
+
+	// Setup lazy buddy
+	lazy.batch = min((bm.heap_size / MM_PAGE_SIZE) - 1, 31); 	
+	lazy.wmk = lazy.batch * 6;
+
+	list_init_head(&lazy.list);
 
 	return bm.rmd_size;
 }
