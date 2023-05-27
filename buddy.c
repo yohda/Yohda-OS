@@ -34,6 +34,8 @@
 #define BUD_MAX_ORD	 		(11)
 #define BUD_MIN_CHUNK		(8)
 
+#define IS_MEM_ERR(x) ((!x)||((x)>=(MM_BASE+bm.heap_size))||((x)<(MM_BASE)))
+
 struct bud_manager {
 	// buddy
 	u32 dep;
@@ -58,14 +60,17 @@ struct bud_manager {
 	s64 rmd_size;
 };
 
-struct bitmaps *bud;
-struct lazy_buddy lazy; 
-struct bud_manager bm;
+static struct bitmaps *bud;
+static struct lazy_page *lps;
+static struct lazy_buddy lazy; 
+static struct bud_manager bm;
 
 static void bud_show_info();
 static int bud_init(const void *base, const s64 size);
+static int bud_lazy_free(const void *addr);
 static void _bud_free(const void *addr);
 static void bud_free(const void* addr);
+static void *bud_lazy_alloc(const int size);
 static void *_bud_alloc(const int size);
 static void *bud_alloc(const int size);
 static int bud_rndup(const int size);
@@ -316,37 +321,41 @@ static void *bud_encode(u32 chunk, u32 ost, u8 dep)
 	return addr;
 }
 
-void *bud_lazy_alloc(const int size)
+static void *bud_lazy_alloc(const int size)
 {
 	struct list_node *node = NULL;
 	struct lazy_page *page = NULL;
 	int i;
 
-	if(!lazy.num) {
-		int batch = lazy.batch; 	
-		struct lazy_page *pages = _bud_alloc(sizeof(struct lazy_page)*batch);
-		if(!pages)
+	if(!lazy.fnum) {
+		int batch = lazy.batch; 
+		struct lazy_page *pages	= _bud_alloc(sizeof(struct lazy_page)*batch);
+		
+		if(IS_MEM_ERR(pages))
 			return err_dbg(NULL, "err\n");
 
 		for(i=0 ; i<batch ; i++) {
 			pages[i].addr = _bud_alloc(MM_PAGE_SIZE);
-			if(!pages[i].addr)
+			if(IS_MEM_ERR(pages[i].addr))
 				return err_dbg(NULL, "err\n");
 
-			list_add(&lazy.list, &pages[i].node); 					
-			lazy.num++;
+			list_add(&lazy.frees, &pages[i].node); 					
+			lazy.fnum++;
 		}
 	} 
 	
-	node = list_get(&lazy.list);
-	if(!node)
+	node = list_get(&lazy.frees);
+	if(IS_MEM_ERR(node))
 		return err_dbg(NULL, "err\n");
 
 	page = container_of(node, struct lazy_page, node);
-	if(!page)
+	if(IS_MEM_ERR(page))
 		return err_dbg(NULL, "err\n");
 
-	lazy.num--;
+	list_add(&lazy.inuses, node);	
+	
+	lazy.fnum--;
+	lazy.unum++;
 
 	return page->addr;
 }
@@ -375,10 +384,8 @@ static void *_bud_alloc(const int size)
 	int chunk, ord, ost;
 	void *addr;
 
-	if(size < 1) {
-		bud_debug("(0x%x)Invaid Parameter#%d\n", __builtin_return_address(0), size);
-		return NULL;
-	}
+	if(size < 1) 
+		return err_dbg(NULL, "(0x%x)Invaid Parameter#%d\n", __builtin_return_address(0), size);
 
 	chunk = bud_rndup(size);
 	if(chunk < 0)
@@ -389,10 +396,8 @@ static void *_bud_alloc(const int size)
 		return NULL;
 
 	ost = bud_find_free(ord);
-	if(ost < 0) {
-		bud_debug("Memory allocation failed#%d\n", ost);	
-		return NULL;
-	}
+	if(ost < 0)
+		err_dbg(NULL, "Memory allocation failed#%d\n", ost);	
 	
 	addr = bud_encode(chunk, ost, ord);
 	if(!addr)
@@ -409,38 +414,53 @@ static struct bud_blk_hdr *bud_decode(void *addr)
 	return hdr;
 }
 
-int bud_lazy_free(const void *addr)
+static int bud_lazy_free(const void *addr)
 {
-	struct lazy_page *lp;	
-	if(!addr)
+	struct list_node *node = NULL;
+	struct lazy_page *lp = NULL;	
+	int i = MM_RAM_SIZE;	
+
+	if(IS_MEM_ERR(addr))
 		return err_dbg(-1, "err\n");
-	
-	lp = _bud_alloc(sizeof(struct lazy_page));
-	if(!lp)
+
+	if(!lazy.unum)
 		return err_dbg(-4, "err\n");
 
-	lp->addr = addr;	
+	list_for_each(&lazy.inuses, node) {
+		lp = container_of(node, struct lazy_page, node);
+		if(IS_MEM_ERR(lp))
+			return err_dbg(-8, "err\n");
+		
+		if(lp->addr == addr)
+			break;
+	}
 
-	list_add(&lazy.list, &lp->node); 
-	lazy.num++;
+	if(lp->addr != addr)
+		return err_dbg(-12, "err\n");
+	
+	list_del(&lazy.inuses, node);
+	list_add(&lazy.frees, node); 
 
-	if(lazy.num > lazy.wmk) {
+	lazy.fnum++;
+	lazy.unum--;
+
+	if(lazy.fnum > lazy.wmk) {
 		int batch = lazy.batch; 	
 		struct lazy_page *page; 
 		struct list_node *node;
 
 		while(batch--) {
-			node = list_get(&lazy.list);
-			if(!node)
+			node = list_get(&lazy.frees);
+			if(IS_MEM_ERR(node))
 				return err_dbg(-8, "err\n");
 
 			page = container_of(node, struct lazy_page, node);
-			if(!page)
+			if(IS_MEM_ERR(page))
 				return err_dbg(-12, "err\n");
 
 			_bud_free(page->addr);
 		
-			lazy.num--;		
+			lazy.fnum--;		
 		}	
 	}	
 
@@ -610,11 +630,14 @@ static int _bud_init(const void* base, const s64 heap_size, const int llc)
 
 	bm.rmd_size = heap_size - (bm.heap_size + bm.heap_meta_size); 
 
+	bud_debug("base#0x%x, heap size#0x%x\n", MM_BASE, bm.heap_size);
+
 	// Setup lazy buddy
 	lazy.batch = min((bm.heap_size / MM_PAGE_SIZE) - 1, 31); 	
 	lazy.wmk = lazy.batch * 6;
 
-	list_init_head(&lazy.list);
+	list_init_head(&lazy.frees);
+	list_init_head(&lazy.inuses);
 
 	return bm.rmd_size;
 }

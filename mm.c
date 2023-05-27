@@ -29,6 +29,8 @@
 #define MM_SEC_CHUNK_ULC ((MM_PRI_CHUNK_LLC)/2)
 #define MM_SEC_CHUNK_LLC (16)
 
+#define IS_MEM_ERR(x) ((!x)||((x)>=(MM_BASE+mm.heap_size))||((x)<(MM_BASE)))
+
 // I think that it is able to change the a size of bitmaps. In your computer with operating 64-bit, it can be 64.
 
 struct mm_mgr {

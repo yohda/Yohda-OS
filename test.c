@@ -698,33 +698,45 @@ void mmi_test()
 #ifdef LAZY_BUD_TEST
 void lazy_buddy_test()
 {
-	mmi_init(0x2000000, 1*1023*1024*815);
+	//mmi_init(0x2000000, 1*1023*1024*815);
 
 	void *p1, *p2, **p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
-	//u8 **p3;
 
 	p1 = pm_if.mm_alloc(1921);
 	mm_debug("1-0x%x\n", p1);
 
+	pm_if.mm_free(p1);
+	
 	p2 = pm_if.mm_alloc(18293);
 	mm_debug("2-0x%x\n", p2);
 
+	pm_if.mm_free(p2);
+	
+	p4 = pm_if.mm_alloc(1921);
+	mm_debug("1-0x%x\n", p4);
+	
+	pm_if.mm_free(p4);
+	
 	int i;
-	for(i=0 ; i<180; i++) {
+	for(i=0 ; i<10000; i++) {
 		p3[i] = pm_if.mm_alloc(1893);
-		mm_debug("3-0x%x\n", p3[i]);
+		//mm_debug("3-0x%x\n", p3[i]);
 	}
 
-	p4 = pm_if.mm_alloc(1921);
-	mm_debug("1-0x%x\n", p1);
-
-	for(i=0 ; i<180; i++) {
+	for(i=0 ; i<10000; i++) {
 		pm_if.mm_free(p3[i]);
 	}
 
-	p5 = pm_if.mm_alloc(24932);
-	mm_debug("4-0x%x\n", p4);
+	p5 = pm_if.mm_alloc(1921);
+	//mm_debug("1-0x%x\n", p5);
+	
+	pm_if.mm_free(p5);
+	
+	p6 = pm_if.mm_alloc(24932);
+	//mm_debug("4-0x%x\n", p6);
 
+	pm_if.mm_free(p6);
+	
 	return ;
 	
 	p5 = yalloc(13029, MM_KL);

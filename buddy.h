@@ -6,10 +6,13 @@
 #include "list.h"
 
 struct lazy_buddy {
+	struct list_node frees;
+	struct list_node inuses;
 	struct list_node list;	
 	int batch;
 	int wmk;
-	int num;	
+	int unum;
+	int fnum;	
 };
 
 struct lazy_page {
