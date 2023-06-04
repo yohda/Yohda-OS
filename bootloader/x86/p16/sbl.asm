@@ -1,17 +1,13 @@
-ORG 0x7E00
-BITS 16
-
-SECTION .text
+bits 16
 
 ; VGA 
 VGA_TEST_BASE equ 0xB800
 VGA_LINE_BYTES equ 160
 
-global vga_rows
+SECTION .text
+jmp 0x0000:.sbl_start
 
-jmp 0x0000:.start
-
-.start:
+.sbl_start:
 	pop ax
 	mov word [vga_rows], ax
 
@@ -48,25 +44,22 @@ jmp 0x0000:.start
 
 .gdt_tbl:
 	; NULL Segment
-	dw 0x0000
-	dw 0x0000
-	dw 0x0000
-	dw 0x0000
+	dw 0x0000, 0x0000, 0x0000, 0x0000
 
 	; Code Segment
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
-	db 0x9A
-	db 0xCF
+	db 0b10011010
+	db 0b11001111
 	db 0x00
 
 	; Data Segment
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
-	db 0x92
-	db 0xCF
+	db 0b10010010
+	db 0b11001111
 	db 0x00
 
 .gdtr:
@@ -83,8 +76,25 @@ jmp 0x0000:.start
 	sub eax, .gdt_tbl
 	mov [.gdtr], ax
 	lgdt [.gdtr]
+
+	jmp $
+
+.pmode:	
+	mov eax, cr0
+	or al, 1
+	mov cr0, eax	
+	
+	jmp 0x08:.pmain
+
+[BITS 32]
+
+.pmain:
+	xor ax, ax
+	
 	
 	jmp $
+	
+[BITS 16]
 
 vga_text_print:
 	push bp

@@ -1,7 +1,4 @@
-%ifndef DEBUG
-org 0x7C00       
 bits 16   
-%endif
 
 ; VGA 
 VGA_TEST_BASE equ 0xB800
@@ -20,9 +17,9 @@ MEM_SEC_BOOT_ADDR equ 0x07E0
 global vga_rows
 
 SECTION .text      
-jmp 0x0000:.start
+jmp 0x0000:.pbl_start
 
-.start:
+.pbl_start:
 	cli	
 
     xor ax, ax
@@ -115,7 +112,7 @@ jmp 0x0000:.start
     add  sp, 2
 
 	push word [vga_rows] 
-	jmp 0x07E0:0x0000 
+	jmp 0x0000:0x7E00 
 	
 vga_text_print:
 	push bp
