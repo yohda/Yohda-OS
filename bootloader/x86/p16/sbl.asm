@@ -1,5 +1,7 @@
 bits 16
 
+extern main
+
 ; VGA 
 VGA_TEST_BASE equ 0xB800
 VGA_LINE_BYTES equ 160
@@ -90,9 +92,14 @@ jmp 0x0000:.sbl_start
 
 .pmain:
 	xor ax, ax
-	
-	
-	jmp $
+
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+
+	call main
 	
 [BITS 16]
 
@@ -145,4 +152,4 @@ MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
 A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
 GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 
-times 512 - ($-$$) nop 
+times 512 - ($-$$) db 0 

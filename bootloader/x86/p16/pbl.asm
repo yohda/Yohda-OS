@@ -163,7 +163,7 @@ ACT_PART_MSG:	db 'There exist a active partition', 0
 SEC_BOOT_MSG:	db 'Ready for jumping secondary bootloader', 0 	
 BOOT_MSG:    	db 'YohdaOS Primary Boot Loader Start', 0 
 
-times (446 - ($-$$)) nop
+times (446 - ($-$$)) db 0
 times 16 db 0
 times 16 db 0
 times 16 db 0

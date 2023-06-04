@@ -4,6 +4,7 @@ SECTIONS
 	{
 		pbl.o (.text)
 		sbl.o (.text)
+		main.o (.text)
 		*(.rodata)
 	}
 
