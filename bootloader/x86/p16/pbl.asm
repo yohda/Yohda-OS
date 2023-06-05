@@ -1,4 +1,4 @@
-bits 16   
+[BITS 16] 
 
 ; VGA 
 VGA_TEST_BASE equ 0xB800
@@ -17,9 +17,9 @@ MEM_SEC_BOOT_ADDR equ 0x07E0
 global vga_rows
 
 SECTION .text      
-jmp 0x0000:.pbl_start
+jmp 0x0000:_pbl_start
 
-.pbl_start:
+_pbl_start:
 	cli	
 
     xor ax, ax
@@ -35,19 +35,19 @@ jmp 0x0000:.pbl_start
 
     xor si, si                            
 
-.vga_test_init:                   
+_vga_test_init:                   
     mov word [es:si], 0x0F00       
                                     
     add si, 2              
     cmp si, VGA_LINE_BYTES*25     
                             
-    jne .vga_test_init      
+    jne _vga_test_init      
 	 
     push BOOT_MSG               
     call vga_text_print         
     add  sp, 2                 
 
-.part_check:
+_part_check:
 	push es
 	push di
 	
@@ -55,23 +55,23 @@ jmp 0x0000:.pbl_start
 	mov es, ax
 	mov di, MEM_PAR_OST
 
-.part_loop:
-	mov al, byte [es:di] 
-	cmp al, 0x08
+	.part_loop:
+		mov al, byte [es:di] 
+		cmp al, 0x08
 
-	je .part_read  	
+		je _part_read  	
 
-	add di, 0x10
+		add di, 0x10
 
-	cmp di, 0x1FE 
-	jne .part_loop
+		cmp di, 0x1FE 
+		jne .part_loop
 	
-	pop di
-	pop es
+		pop di
+		pop es
 	
-	jmp .disk_sec
+		jmp _disk_sec
 
-.part_read:
+_part_read:
 	push ACT_PART_MSG                
     call vga_text_print         
     add  sp, 2
@@ -84,7 +84,7 @@ jmp 0x0000:.pbl_start
 	pop di
 	pop es	
 
-.disk_sec:
+_disk_sec:
 	push es
 	
 	mov ax, MEM_SEC_BOOT_ADDR
@@ -102,11 +102,11 @@ jmp 0x0000:.pbl_start
 	pop es
 	
 	cmp al, DISK_READ_SECS
-	je .sbl
+	je _sbl
 
 	; Something is needed to be writen shiled code here.
 
-.sbl:
+_sbl:
 	push SEC_BOOT_MSG               
     call vga_text_print         
     add  sp, 2
@@ -159,9 +159,9 @@ vga_text_print:
 	ret
 
 vga_rows	: 	dw 0
-ACT_PART_MSG:	db 'There exist a active partition', 0
 SEC_BOOT_MSG:	db 'Ready for jumping secondary bootloader', 0 	
 BOOT_MSG:    	db 'YohdaOS Primary Boot Loader Start', 0 
+ACT_PART_MSG:	db 'There exist a active partition', 0
 
 times (446 - ($-$$)) db 0
 times 16 db 0

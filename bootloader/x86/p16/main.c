@@ -3,12 +3,10 @@
 int main()
 {
 	vga_text_init();
-	vga_text_write('P');
-	vga_text_write('r');
-	vga_text_write('o');
-	vga_text_write('t');
-	vga_text_write('e');
-	vga_text_write('d');
+	vga_text_write("Protected mode\n");
+	vga_text_write("Protected mode2");
+	vga_text_write("");
+	vga_text_write("Pr\node2");
 
 	while(1);
 }

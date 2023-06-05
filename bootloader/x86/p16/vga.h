@@ -3,6 +3,9 @@
 
 #include "type.h"
 
+#define VT_ROWS			(25)
+#define VT_COLUMNS		(80)
+
 #define VT_BLACK 		(0x0)
 #define VT_BLUE			(0x1)
 #define VT_GREEN		(0x2)
@@ -22,11 +25,12 @@
 
 #pragma pack(push, 1)
 struct vga_text {
-	u8 attr;
 	char text;
+	u8 attr;
 };
 #pragma pack(pop)
 
-int vga_text_write(const char c);
+int vga_text_init();
+int vga_text_write(const char *c);
 
 #endif

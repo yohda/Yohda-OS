@@ -1,4 +1,4 @@
-bits 16
+[BITS 16]
 
 extern main
 
@@ -7,9 +7,9 @@ VGA_TEST_BASE equ 0xB800
 VGA_LINE_BYTES equ 160
 
 SECTION .text
-jmp 0x0000:.sbl_start
+jmp 0x0000:_sbl_start
 
-.sbl_start:
+_sbl_start:
 	pop ax
 	mov word [vga_rows], ax
 
@@ -17,7 +17,7 @@ jmp 0x0000:.sbl_start
 	call vga_text_print
 	add sp, 2
 
-.a20_sec:
+_a20_sec:
 .a20_chk:
 	push es
 	
@@ -32,75 +32,50 @@ jmp 0x0000:.sbl_start
 	pop es
 	
 	cmp bx, cx
-	jne .gdt_sec 
+	jne _gdt_sec 
 
 .a20_enable:
 	push A20_MSG               
     call vga_text_print         
     add sp, 2
 
-.gdt_sec:
+_gdt_sec:
 	push GDT_MSG               
     call vga_text_print         
     add sp, 2
-
-.gdt_tbl:
-	; NULL Segment
-	dw 0x0000, 0x0000, 0x0000, 0x0000
-
-	; Code Segment
-	dw 0xFFFF
-	dw 0x0000
-	db 0x00
-	db 0b10011010
-	db 0b11001111
-	db 0x00
-
-	; Data Segment
-	dw 0xFFFF
-	dw 0x0000
-	db 0x00
-	db 0b10010010
-	db 0b11001111
-	db 0x00
-
-.gdtr:
-	dw 0
-	dd 0
-
 .gdt_load:
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
-	add eax, .gdt_tbl
-	mov [.gdtr+2], eax
-	mov eax, .gdtr
-	sub eax, .gdt_tbl
-	mov [.gdtr], ax
-	lgdt [.gdtr]
+	add eax, _gdt_tbl
+	mov [_gdtr+2], eax
+	mov eax, _gdtr
+	sub eax, _gdt_tbl
+	mov [_gdtr], ax
+	lgdt [_gdtr]
 
-	jmp $
-
-.pmode:	
+_pmode:	
 	mov eax, cr0
 	or al, 1
 	mov cr0, eax	
 	
-	jmp 0x08:.pmain
+	jmp 0x08:_pmain
 
 [BITS 32]
 
-.pmain:
-	xor ax, ax
+_pmain:
+	mov ax, 0x10
 
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
-
-	call main
+	mov ebp, 0x1000000	
+	mov esp, 0x1000000
 	
+	call main
+		
 [BITS 16]
 
 vga_text_print:
@@ -147,9 +122,36 @@ vga_text_print:
 
 	ret
 
+_gdt_tbl:
+	; NULL Segment
+	dw 0x0000
+	dw 0x0000
+	dw 0x0000
+	dw 0x0000
+
+	; Code Segment
+	dw 0xFFFF
+	dw 0x0000
+	db 0x00
+	db 10011010b
+	db 11001111b
+	db 0x00
+
+	; Data Segment
+	dw 0xFFFF
+	dw 0x0000
+	db 0x00
+	db 10010010b
+	db 11001111b
+	db 0x00
+
+_gdtr:
+	dw 0 
+	dd 0
+
 vga_rows	: 	dw 0
 MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
 A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
 GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 
-times 512 - ($-$$) db 0 
+;times 512 - ($-$$) db 0
