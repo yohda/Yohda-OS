@@ -45,7 +45,6 @@ _vga_test_init:
 	 
     push BOOT_MSG               
     call vga_text_print         
-    ;add  sp, 2                 
 
 _part_check:
 	push es
@@ -74,7 +73,6 @@ _part_check:
 _part_read:
 	push ACT_PART_MSG                
     call vga_text_print         
-    ;add  sp, 2
 	
 	push es
 	push di
@@ -106,7 +104,6 @@ _disk_read:
 	mov ah, BIOS_READ_SECS	; BIOS INT 13h F2h:Read Sectors from drive
 	dec word [secs]		; because start sector number 2
 	mov	al, [secs]	
-	mov al, 1
 	mov ch, 0		; start to cylinder
 	mov cl,	2		; start to sector
 	mov dh, 0 		; start to head
@@ -119,7 +116,6 @@ _disk_read:
 _sbl:
 	push SEC_BOOT_MSG               
     call vga_text_print         
-    ;add  sp, 2
 
 	push word [vga_rows] 	; pass command line number for sbl
 
