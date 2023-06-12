@@ -92,8 +92,7 @@ _pmain:
 %ifdef DEBUG
 	jmp $
 %else
-	;jmp 0x08:_pbl_start
-	jmp 0x08:0x8000
+	jmp 0x08:_pbl_start
 %endif
 	
 [BITS 16]
