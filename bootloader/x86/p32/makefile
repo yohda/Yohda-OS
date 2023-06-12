@@ -10,16 +10,20 @@ OBJ_DIR:=temp
 GCC:=i686-elf-gcc
 CFLAG:=-ffreestanding -g -Wall -Wextra -nostdlib -nostartfiles -I$(INC)
 LD:=i686-elf-gcc
-LDFLAG:= -ffreestanding -O2 -nostdlib -T link.ld
+LDFLAG:= -ffreestanding -O2 -nostdlib -T link.ld 
 
 $(info $(OBJS))
 
 QE32:=qemu-system-i386
 QE32_LEGACY_FLAG:=
-QE32_Q35_FLAG:=-m 4096 -M q35 -d int -no-reboot -no-shutdown -D ./log.txt
+QE32_Q35_FLAG:=-m 4096 -M q35 -d int -no-reboot -no-shutdown -boot d -drive id=disk,file=disk.img,if=none -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 
 QE32_HOST_FLAG:=-m 4096 -M virt -d int -no-reboot -no-shutdown -cpu host -enable-kvm
 YASM:=nasm
+ifdef D
+YAFLAG:=-f elf -g3 -F dwarf -DDEBUG
+else
 YAFLAG:=-f elf -g3 -F dwarf 
+endif
 
 all: pre bl.elf post 
 
@@ -29,8 +33,8 @@ asm: pre $(ASM_OBJS)
 
 pre:
 	mkdir -p $(OBJ_DIR)
-	cp ../p16/temp/fbl.o ./
-	cp ../p16/temp/sbl.o ./
+	#cp ../p16/fbl.asm ./
+	#cp ../p16/sbl.asm ./
 
 %.o: %.asm	
 	$(YASM) $(YAFLAG) $< -o $@
@@ -43,7 +47,7 @@ bl.elf: $(OBJS)
 	objcopy -O binary -S $@ bl.bin
 
 q35:
-	$(QE32) $(QE32_FLAG) -fda $(OBJ_DIR)/bl.bin	
+	$(QE32) $(QE32_Q35_FLAG) -fda $(OBJ_DIR)/bl.bin
 
 host:
 	$(QE32) $(QE32_HOST_FLAG) -hda $(OBJ_DIR)/bl.bin	
@@ -60,13 +64,13 @@ host-debug:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
 
 g16:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break _sbl_start' -ex 'continue'
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break fbl.asm:_disk_get_infos' -ex 'continue'
 
 g32:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs'
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break pbl.asm:_pbl_start' -ex 'continue'
 
 clean:
 	rm -rf $(OBJ_DIR)	
 	rm -f *.o *.d *.bin *.elf
-	
+
 -include $(SRCS:.c=.d)
