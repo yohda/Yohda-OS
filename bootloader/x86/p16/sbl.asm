@@ -3,7 +3,8 @@
 
 [BITS 16]
 
-;%include "paging.asm"
+entry:
+
 %ifndef DEBUG
 extern _pbl_start
 %endif
@@ -55,6 +56,7 @@ _gdt_sec:
 	push GDT_MSG               
     call vga_text_print         
     add sp, 2
+
 .gdt_load:
 	xor eax, eax
 	mov ax, ds
@@ -71,24 +73,7 @@ _pmode:
 	or al, 1
 	mov cr0, eax	
 	
-	jmp 0x08:_pmain
-
 [BITS 32]
-
-_pmain:
-	; After entering into protected mode, you just should load data segment into each data segments.
-	mov ax, 0x10 
-
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-
-	; When you assign the stack segment, you should consider the interrupt. So, after set the ss, you just immediately have to assign the esp and ebp.
-	mov ss, ax
-	mov ebp, 0x7C00	
-	mov esp, 0x7C00
-
 %ifdef DEBUG
 	jmp $
 %else
@@ -173,6 +158,8 @@ MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
 A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
 GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 
-times 512 - ($-$$) db 0x00
+size equ $ - entry
+times (1024 - size) db 0x00
+;times 512 - ($-$$) db 0x00
 ;times 512*34 db 0x4F 
 %endif 

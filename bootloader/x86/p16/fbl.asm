@@ -10,8 +10,8 @@ VGA_LINE_BYTES equ 160
 STACK_TOP equ 0x7C00 
 
 ; BIOS INT
-BIOS_READ_SECS	equ 0x02
-BIOS_READ_DISK	equ 0x08
+BIOS_READ_SECS		equ 0x02
+BIOS_READ_DISK_INFO	equ 0x08
 
 extern _sbl_start
 global vga_rows
@@ -85,12 +85,12 @@ _part_read:
 _disk_get_infos:
 	pushad
 	
-	mov ah, BIOS_READ_DISK	; BIOS INT 13h F8h:Read Drive Parameteres
+	mov ah, BIOS_READ_DISK_INFO	; BIOS INT 13h F8h:Read Drive Parameteres
 	int 0x13	
-	jc _error				; if carry set, error
+	jc _error					; if carry set, error
 
-	mov [secs], cx			; calculate sectors per a track
-	and word [secs], 0x003F	; cx[5:0] - sectors per track 	
+	mov [secs], cx				; calculate sectors per a track
+	and word [secs], 0x003F		; cx[5:0] - sectors per track 	
 	
 	popad
 
