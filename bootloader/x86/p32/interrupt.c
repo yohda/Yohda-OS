@@ -15,7 +15,8 @@ static struct idt32_entry  __attribute__((aligned(IDT_ENTRY_SIZE))) idt_tbl[IDT_
 
 void isr_common_handler(const int irq)
 {
-	vga_text_write(__func__);	
+	vga_text_write(__func__);
+	vga_text_write(irq);
 }
 
 void isr_division_error_handler(const int irq)
