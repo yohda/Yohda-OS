@@ -83,41 +83,59 @@ _part_read:
 	pop es	
 
 _disk_get_infos:
-	pushad
+	pusha
 	
 	mov ah, BIOS_READ_DISK_INFO	; BIOS INT 13h F8h:Read Drive Parameteres
 	int 0x13	
 	jc _error					; if carry set, error
 
-	mov [secs], cx				; calculate sectors per a track
-	and word [secs], 0x003F		; cx[5:0] - sectors per track 	
-	
-	popad
+	mov [secs], cx				; cx[5:0] - sectors per track
+	and word [secs], 0x003F		; calculate sectors per a track	
+
+	mov [cylins], cx			; cx[15:6] - number of cylinders
+	and word [cylins], 0xFFC0	; calculate cylinders
+	shr word [cylins], 6
+	inc word [cylins]			; index of cylinders start = number - 1
+		
+	mov byte [heads], dh 		; dh - number of head 
+	inc word [heads] 			; index of head starts = number - 1
+
+	popa
 
 _disk_read:
-	pushad
+	pusha
 	
 	mov ax, 0x07E0
 	mov es, ax
 	xor bx, bx
-	
+
+	mov al, [secs]	
+	dec al
 	mov ah, BIOS_READ_SECS	; BIOS INT 13h F2h:Read Sectors from drive
-	dec word [secs]		; because start sector number 2
-	mov	al, [secs]	
-	mov ch, 0		; start to cylinder
-	mov cl,	2		; start to sector
-	mov dh, 0 		; start to head
+	mov ch, 0				; start to cylinder
+	mov cl,	2				; start to sector
+	mov dh, 0 				; start to head
 
-	int 0x13		; request BIOS INT13h F2h
-	jc _error		; if carry set, error
+	mov word [sbl_start_sec], 1
+	mov word [sbl_start_head], 1
+	mov word [sbl_start_cylin], 0
 
-	popad
+	int 0x13				; request BIOS INT13h F2h
+	jc _error				; if carry set, error
+
+	popa
 	
 _sbl:
 	push SEC_BOOT_MSG               
     call vga_text_print         
 
-	push word [vga_rows] 	; pass command line number for sbl
+	push word [vga_rows] 		; pass command line number for sbl
+	push word [secs]			; pass sectors per track
+	push word [heads]			; pass heads
+	push word [cylins]			; pass cylinders
+	push word [sbl_start_sec] 	; pass start sector
+	push word [sbl_start_head]  ; pass start head
+	push word [sbl_start_cylin] ; pass satrt cylinder
 
 	jmp 0x0000:_sbl_start 
 	
@@ -169,7 +187,12 @@ _error:
 	jmp $ 
 
 ; disk
-secs: 	dw 0
+secs			: dw 0
+heads			: dw 0
+cylins			: dw 0
+sbl_start_sec 	: dw 0
+sbl_start_head 	: dw 0
+sbl_start_cylin : dw 0
 
 ; print
 vga_rows	: 	dw 0

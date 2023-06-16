@@ -5,15 +5,14 @@
 
 entry:
 
-%ifndef DEBUG
-extern _pbl_start
-%endif
+PBL_ENTRY_POINT equ 0x100000
+
+DISK_SEG_LIMIT  equ 0xFFFF
+BIOS_READ_SECS	equ 0x02
 
 ; VGA 
-VGA_TEST_BASE equ 0xB800
-VGA_LINE_BYTES equ 160
-
-SBL_ALLOC_SECS equ 32
+VGA_TEST_BASE 	equ 0xB800
+VGA_LINE_BYTES	equ 160
 
 SECTION .text
 jmp 0x0000:_sbl_start
@@ -21,10 +20,13 @@ jmp 0x0000:_sbl_start
 global _sbl_start
 
 _sbl_start:
-	pop ax
-	pop bx
-
-	mov word [vga_rows], ax
+	pop word [start_cylin]
+	pop word [start_head]
+	pop word [start_sec]
+	pop word [cylins]
+	pop word [heads]
+	pop word [secs]
+	pop word [vga_rows]
 
 	push MSG_SEC_BOOT
 	call vga_text_print
@@ -45,12 +47,66 @@ _a20_sec:
 	pop es
 	
 	cmp bx, cx
-	jne _gdt_sec 
+	jne _load_kernel 
 
 .a20_enable:
 	push A20_MSG               
     call vga_text_print         
     add sp, 2
+
+_load_kernel:
+	pusha
+	
+	mov ax, 0xFFFF
+	mov es, ax
+	mov bx, 0x10
+
+	_disk_loop:
+		; migration address
+		mov ax, 512
+		mul word [secs]
+		mov cx, bx
+		add bx, ax
+		jc _disk_loop_exit
+		
+		mov bx, cx
+
+		; read the sectors 
+		mov al, [secs]					; sector count to read
+		mov ah, BIOS_READ_SECS			; BIOS INT 13h F2h:Read Sectors from drive
+		mov ch, byte [start_cylin]		; start to cylinder
+		mov cl,	byte [start_sec]		; start to sector
+		mov dh, byte [start_head]		; start to head
+
+		int 0x13						; request BIOS INT13h F2h
+		jc _error						; if carry set, error
+		
+		cmp al, [secs]					; if successed, return the read sectors count to al
+		jne _error	
+
+		; increment offset(bx)
+		mov ax, 512
+		mul word [secs]
+		add bx, ax
+
+		; calculate next head count	
+		mov ax, [heads]
+		inc word [start_head]
+		cmp [start_head], ax
+		jl _disk_loop
+
+		mov word [start_head], 0
+	
+		; calculate next cylinder count
+		mov ax, [cylins]
+		inc word [start_cylin]				
+		cmp [start_cylin], ax 
+		jl _disk_loop
+
+		jmp _error
+
+	_disk_loop_exit:
+	popa
 
 _gdt_sec:
 	push GDT_MSG               
@@ -73,15 +129,13 @@ _pmode:
 	or al, 1
 	mov cr0, eax	
 	
-[BITS 32]
-%ifdef DEBUG
-	jmp $
-%else
-	jmp 0x08:_pbl_start
-%endif
-	
-[BITS 16]
+	jmp 0x08:_penter
 
+[BITS 32]
+_penter:
+	jmp 0x100000;	
+
+[BITS 16]	
 vga_text_print:
 	push bp
 	mov bp, sp
@@ -126,6 +180,9 @@ vga_text_print:
 
 	ret
 
+_error:
+	jmp $
+
 _gdt_tbl:
 	; NULL Segment
 	dw 0x0000
@@ -153,13 +210,20 @@ _gdtr:
 	dw 0 
 	dd 0
 
+
+start_cylin :   dw 0
+start_head	:   dw 0
+start_sec	:   dw 0
+cylins 		:   dw 0
+heads 		:	dw 0
+secs		: 	dw 0
 vga_rows	: 	dw 0
 MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
 A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
 GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 
 size equ $ - entry
-times (1024 - size) db 0x00
+times ((512*35) - size) nop
 ;times 512 - ($-$$) db 0x00
 ;times 512*34 db 0x4F 
 %endif 
