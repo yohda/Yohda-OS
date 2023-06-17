@@ -1,14 +1,15 @@
 SECTIONS
 {
-	.text 0x7C00 :
+	.text 0x100000 :
 	{
-		fbl.o (.text) 
-		sbl.o (.text)
-		/*. = 0x8400;*/
 		pbl.o (.text)	
 		main.o (.text)
-		/**(.text)
-		*(.rodata)*/
+		*(.text)
+	}
+
+	.rodata :
+	{
+		*(.rodata)
 	}
 
 	.data :
@@ -23,7 +24,6 @@ SECTIONS
     }
 
 	ebl_text = .;
-	
 /*
 	. = 0xC0100000;
 	.text ALIGN(0x1000): AT(ADDR(.text) - 0xC0000000)
