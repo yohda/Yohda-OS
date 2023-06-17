@@ -3,9 +3,6 @@
 
 ### **목차**
 
-#### \- [YohdaOS는 x86 기반의 시스템 SW 개발 교육용 OS](https://github.com/yohda/Yohda-OS/tree/master)
-
-
 #### \- [에러 사항](https://yohda.tistory.com/entry/%EC%9A%B4%EC%98%81%EC%B2%B4%EC%A0%9C-%EB%A7%8C%EB%93%A4%EA%B8%B0-%EC%97%90%EB%9F%AC-%EC%82%AC%ED%95%AD)
 
 " [데이터 정렬](https://yohda.tistory.com/entry/%EC%9A%B4%EC%98%81%EC%B2%B4%EC%A0%9C-Data-structure-alignment) 
