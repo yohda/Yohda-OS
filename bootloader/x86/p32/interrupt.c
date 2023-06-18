@@ -9,6 +9,7 @@ extern void isr_division_error(void);
 extern void isr_non_maskable_interrupt(void);
 extern void isr_general_protection_fault(void);
 extern void isr_page_fault(void);
+extern void isr_system_timer_interrupt(void);
 
 static struct idtr32 idtr;
 static struct idt32_entry  __attribute__((aligned(IDT_ENTRY_SIZE))) idt_tbl[IDT_MAX_ENTRYS];
@@ -39,6 +40,11 @@ void isr_page_fault_handler(const int irq, const u32 err)
 	vga_text_write(__func__);	
 }
 
+void isr_system_timer_handler(const int irq)
+{
+	vga_text_write(__func__);	
+}
+
 void idt_reg_isr(const int vector, const u32 offset, const u8 attr)
 {
 	if(vector<0 || vector>IDT_MAX_ENTRYS)
@@ -62,9 +68,10 @@ void interrupt_init()
 	}
 
 	idt_reg_isr(INT_VEC_DBZ, isr_division_error, 0x8F);
-	idt_reg_isr(INT_VEC_NMI, isr_non_maskable_interrupt_handler, 0x8F);
-	idt_reg_isr(INT_VEC_GPF, isr_general_protection_fault_handler, 0x8F);
-	idt_reg_isr(INT_VEC_PF, isr_page_fault_handler, 0x8F);
+	idt_reg_isr(INT_VEC_NMI, isr_non_maskable_interrupt, 0x8F);
+	idt_reg_isr(INT_VEC_GPF, isr_general_protection_fault, 0x8F);
+	idt_reg_isr(INT_VEC_PF, isr_page_fault, 0x8F);
+	idt_reg_isr(INT_VEC_SYS_TIMER, isr_system_timer_interrupt, 0x8F);
 
 	__asm__ __volatile__ ("lidt %0" : : "m"(idtr));
 	__asm__ __volatile__ ("sti");

@@ -1,6 +1,7 @@
 #include "vga.h"
 #include "interrupt.h"
 #include "ata.h"
+#include "pic.h"
 //#include "block/ahci.h"
 
 extern void load_higher_half(void);
@@ -19,6 +20,7 @@ int main()
 	vga_text_write("Pr\node2");
 
 	interrupt_init();	
+	pic_init();
 	//load_higher_half();
 	//b = a/0;
 	pci_init();
