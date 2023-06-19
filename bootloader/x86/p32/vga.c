@@ -31,6 +31,11 @@ static int _vga_text_write(const char *c, const u8 fg, const u8 bg)
 	return 0;
 }
 
+int vga_next_line()
+{
+
+}
+
 int vga_text_write(const char *c)
 {
 	_vga_text_write(c, VT_WHITE, VT_BLACK);

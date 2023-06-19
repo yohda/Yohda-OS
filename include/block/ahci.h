@@ -1,7 +1,8 @@
 #ifndef _AHCI_H_
 #define _AHCI_H_
 
-#include "Types.h"
+#include "type.h"
+//#include "Types.h"
 
 #define AHCI_MAX_PORT_NUM 			32
 #define AHCI_MAX_CMD_HEADER_NUM 	32

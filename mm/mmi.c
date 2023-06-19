@@ -1,8 +1,8 @@
 #include "type.h"
-#include "mmi.h"
-#include "errno.h"
+#include "mm/mmi.h"
+#include "error.h"
 #include "debug.h"
-#include "mm.h"
+#include "mm/mm.h"
 
 extern struct mmif pm_if;
 extern struct mmif sm_if;

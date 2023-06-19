@@ -1,8 +1,9 @@
-#include "ahci.h"
-#include "Utility.h"
-#include "errno.h"
-#include "pci.h"
-#include "fat.h"
+#include "block/ahci.h"
+//#include "Utility.h"
+#include "error.h"
+#include "bus/pci.h"
+#include "fs/fat.h"
+#include "debug.h"
 
 #define	SATA_SIG_ATA		0x00000101	// SATA drive
 #define	SATA_SIG_ATAPI		0xEB140101	// SATAPI drive
@@ -94,13 +95,13 @@ int ahci_init(void)
 	
 	err = find_ahci_device(&tmp);
 	if(err) {
-		kPrintf("failed to find ahci devie on, err#%d", err);
+		ahci_debug("failed to find ahci devie on, err#%d", err);
 		return err; 
 	}
 
 	abar = tmp;	
 
-	kPrintf("abar#0x%x\n", abar);
+	ahci_debug("abar#0x%x\n", abar);
 	pi = abar->ghc.pi;
 	while (i < AHCI_MAX_PORT_NUM)
 	{
@@ -110,7 +111,7 @@ int ahci_init(void)
 			switch(type)
 			{
 				case AHCI_DEV_SATA:
-					kPrintf("SATA drive found at port %d\n", i);
+					ahci_debug("SATA drive found at port %d\n", i);
 					ahci_port_rebase(&abar->port[i], i);
 					mgr.active_port = i;
 /*
@@ -129,10 +130,10 @@ int ahci_init(void)
 
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
 						
-					kPrintf("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					kPrintf("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					kPrintf("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					kPrintf("1read_buf[3] - 0x%x\n", *(read_buf+3));
+					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
+					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
+					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
+					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
 */
 /*
 					u32 *buf32 = (u32 *)AHCI_PORT_MAX_MEMORY_SIZE;
@@ -145,10 +146,10 @@ int ahci_init(void)
 
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
 						
-					kPrintf("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					kPrintf("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					kPrintf("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					kPrintf("1read_buf[3] - 0x%x\n", *(read_buf+3));
+					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
+					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
+					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
+					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
 */
 /*
 					u64 *buf64 = (u64 *)AHCI_PORT_MAX_MEMORY_SIZE;
@@ -160,54 +161,52 @@ int ahci_init(void)
 
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
 						
-					kPrintf("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					kPrintf("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					kPrintf("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					kPrintf("1read_buf[3] - 0x%x\n", *(read_buf+3));
+					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
+					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
+					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
+					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
 */	
 					//_ahci_read(&abar->port[i], 8208, 1, &yohda);
 							
-					//kPrintf("read_buf[0] - %s\n", yohda.name);
-					//kPrintf("read_buf[1] - 0x%x\n", yohda.attr);
-					//kPrintf("read_buf[2] - 0x%x\n", yohda.create_time);
-					//kPrintf("read_buf[3] - 0x%x\n", yohda.file_size);
-					//kPrintf("read_buf[4] - 0x%x\n", *(read_buf+4));
-					//kPrintf("read_buf[5] - 0x%x\n", *(read_buf+5));
-					//kPrintf("read_buf[6] - 0x%x\n", *(read_buf+6));
-					//kPrintf("read_buf[7] - 0x%x\n", *(read_buf+7));
-					//kPrintf("read_buf[8] - 0x%x\n", *(read_buf+8));
-					//kPrintf("read_buf[9] - 0x%x\n", *(read_buf+9));
+					//ahci_debug("read_buf[0] - %s\n", yohda.name);
+					//ahci_debug("read_buf[1] - 0x%x\n", yohda.attr);
+					//ahci_debug("read_buf[2] - 0x%x\n", yohda.create_time);
+					//ahci_debug("read_buf[3] - 0x%x\n", yohda.file_size);
+					//ahci_debug("read_buf[4] - 0x%x\n", *(read_buf+4));
+					//ahci_debug("read_buf[5] - 0x%x\n", *(read_buf+5));
+					//ahci_debug("read_buf[6] - 0x%x\n", *(read_buf+6));
+					//ahci_debug("read_buf[7] - 0x%x\n", *(read_buf+7));
+					//ahci_debug("read_buf[8] - 0x%x\n", *(read_buf+8));
+					//ahci_debug("read_buf[9] - 0x%x\n", *(read_buf+9));
 					
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
 					fat_init(read_buf);	
 /*
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
 						
-					kPrintf("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					kPrintf("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					kPrintf("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					kPrintf("1read_buf[3] - 0x%x\n", *(read_buf+3));
-					kPrintf("1read_buf[4] - 0x%x\n", *(read_buf+4));
+					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
+					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
+					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
+					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
+					ahci_debug("1read_buf[4] - 0x%x\n", *(read_buf+4));
 */
-					//kPrintf("1read_buf[5] - 0x%x\n", *(read_buf+5));
-					//kPrintf("1read_buf[6] - 0x%x\n", *(read_buf+6));
-					//kPrintf("1read_buf[7] - 0x%x\n", *(read_buf+7));
-					//kPrintf("1read_buf[8] - 0x%x\n", *(read_buf+8));
-					//kPrintf("1read_buf[9] - 0x%x\n", *(read_buf+9));
+					//ahci_debug("1read_buf[5] - 0x%x\n", *(read_buf+5));
+					//ahci_debug("1read_buf[6] - 0x%x\n", *(read_buf+6));
+					//ahci_debug("1read_buf[7] - 0x%x\n", *(read_buf+7));
+					//ahci_debug("1read_buf[8] - 0x%x\n", *(read_buf+8));
+					//ahci_debug("1read_buf[9] - 0x%x\n", *(read_buf+9));
 				break;
 				case AHCI_DEV_SATAPI:
-					
-					kPrintf("SATAPI drive found at port %d\n", i);
+					ahci_debug("SATAPI drive found at port %d\n", i);
 				break;
 				case AHCI_DEV_SEMB:
-
-					kPrintf("SEMB drive found at port %d\n", i);
+					ahci_debug("SEMB drive found at port %d\n", i);
 				break;
 				case AHCI_DEV_PM:
-					kPrintf("PM drive found at port %d\n", i);
+					ahci_debug("PM drive found at port %d\n", i);
 				break;
 				default:
-					kPrintf("No drive found at port %d\n", i);
+					//ahci_debug("No drive found at port %d\n", i);
 				break;
 			}
 		}
@@ -232,7 +231,7 @@ int ahci_check_type(struct ahci_hba_port *port)
 	if (ipm != HBA_PORT_IPM_ACTIVE)
 		return AHCI_DEV_NULL;
 
-	kPrintf("sig : 0x%x\n", port->sig);
+	ahci_debug("sig : 0x%x\n", port->sig);
 	switch (port->sig)
 	{
 		case SATA_SIG_ATAPI:
@@ -251,10 +250,10 @@ void ahci_port_rebase(struct ahci_hba_port *port, int portno)
 	int i;
 	stop_cmd(port);	// Stop command engine
 
-	kPrintf("port[%d] - 0x%x 0x%x\n", portno, AHCI_CMD_LIST_BASE_ADDR, AHCI_MAX_CMD_LIST_SIZE);
-	kPrintf("port[%d] - 0x%x 0x%x\n", portno, AHCI_RECV_FIS_BASE_ADDR, AHCI_MAX_RECV_FIS_SIZE);
-	kPrintf("port[%d] - 0x%x 0x%x\n", portno, AHCI_CMD_TABLE_BASE_ADDR, AHCI_MAX_CMD_TABLE_SIZE);
-	kPrintf("port[%d] - 0x%x\n", portno, AHCI_PORT_MAX_MEMORY_SIZE);
+	ahci_debug("port[%d] - 0x%x 0x%x\n", portno, AHCI_CMD_LIST_BASE_ADDR, AHCI_MAX_CMD_LIST_SIZE);
+	ahci_debug("port[%d] - 0x%x 0x%x\n", portno, AHCI_RECV_FIS_BASE_ADDR, AHCI_MAX_RECV_FIS_SIZE);
+	ahci_debug("port[%d] - 0x%x 0x%x\n", portno, AHCI_CMD_TABLE_BASE_ADDR, AHCI_MAX_CMD_TABLE_SIZE);
+	ahci_debug("port[%d] - 0x%x\n", portno, AHCI_PORT_MAX_MEMORY_SIZE);
 
 	// Command list offset: 1K*portno
 	// Command list entry size = 32
@@ -262,13 +261,13 @@ void ahci_port_rebase(struct ahci_hba_port *port, int portno)
 	// Command list maxim size = 32*32 = 1K per port
 	port->clb = AHCI_BASE + (portno<<10);
 	port->clbu = 0;
-	kMemSet((void*)(port->clb), 0, AHCI_CMD_LIST_SIZE);
+	memset((void*)(port->clb), 0, AHCI_CMD_LIST_SIZE);
  
 	// FIS offset: 32K+256*portno
 	// FIS entry size = 256 bytes per port
 	port->fb = AHCI_BASE + (AHCI_MAX_PORT_NUM << 10) + (portno<<8);
 	port->fbu = 0;
-	kMemSet((void*)(port->fb), 0, AHCI_RECEVIED_FIS_SIZE);
+	memset((void*)(port->fb), 0, AHCI_RECEVIED_FIS_SIZE);
  
 	// Command table offset: 40K + 8K*portno
 	// Command table size = 256*32 = 8K per port
@@ -280,12 +279,12 @@ void ahci_port_rebase(struct ahci_hba_port *port, int portno)
 		// Command table offset: 40K + 8K*portno + cmd_header_index*256
 		cmd_header[i].ctba = AHCI_BASE + (40<<10) + (portno<<13) + (i<<8);
 		cmd_header[i].ctbau = 0;
-		kMemSet((void*)cmd_header[i].ctba, 0, 256);
+		memset((void*)cmd_header[i].ctba, 0, 256);
 	}
  
 	start_cmd(port);	// Start command engine
 
-	kPrintf("port[%d] is initialized\n", portno);
+	ahci_debug("port[%d] is initialized\n", portno);
 }
  
 // Start command engine
@@ -319,7 +318,7 @@ void stop_cmd(struct ahci_hba_port *port)
 	}
 }
 
-int _ahci_read(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, u32 *buf)  
+int _ahci_read(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, void *buf)  
 {
     int spin = 0;           	// Spin lock timeout counter
 	int i;
@@ -344,7 +343,7 @@ int _ahci_read(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, u
     cmd_header->prdtl = (uint16_t)((count-1)>>4) + 1;    // PRDT entries count
     
     cmd_tbl = (struct ahci_hba_cmd_tbl*)(((cmd_header->ctbau) << 32) | cmd_header->ctba);
-    kMemSet(cmd_tbl, 0, sizeof(struct ahci_hba_cmd_tbl) + (cmd_header->prdtl-1)*sizeof(struct ahci_hba_prdt_entry));
+    memset(cmd_tbl, 0, sizeof(struct ahci_hba_cmd_tbl) + (cmd_header->prdtl-1)*sizeof(struct ahci_hba_prdt_entry));
         // 8K bytes (16 sectors) per PRDT
     for (i=0; i<cmd_header->prdtl-1; i++)
     {
@@ -362,15 +361,15 @@ this as an overflow condition. In addition, if the HBA inserts padding as requir
 an overflow error shall not be indicated. The PRD Byte Count field shall be updated based on the
 number of words specified in the PRD table, ignoring any additional padding.**/
        
-	kPrintf("1count#%d\n", count);
+	ahci_debug("1count#%d\n", count);
 
     // Last entry
     cmd_tbl->prdt_entry[i].dba = (u32)buf;
     cmd_tbl->prdt_entry[i].dbau = 0;
-    cmd_tbl->prdt_entry[i].dbc = (count << 9);   // 512 bytes per sector
+    cmd_tbl->prdt_entry[i].dbc = (count<<9)-1;   // 512 bytes per sector
     cmd_tbl->prdt_entry[i].i = 1;
 
-	kPrintf("2count#%d\n", (count << 9));
+	ahci_debug("2count#%d\n", (count << 9));
     // Setup command
     struct ahci_hba_fis_reg_h2d *cmd_fis = (struct ahci_hba_fis_reg_h2d *)(&cmd_tbl->cfis);
  
@@ -396,7 +395,7 @@ number of words specified in the PRD table, ignoring any additional padding.**/
 	}
 	if (spin == 1000000)
 	{
-		kPrintf("Port is hung\n");
+		ahci_debug("Port is hung\n");
 		return false;
 	}
 
@@ -411,7 +410,7 @@ number of words specified in the PRD table, ignoring any additional padding.**/
        
 		if (port->is & HBA_PxIS_TFES)   // Task file error
 		{
-			kPrintf("Task file error\n");
+			ahci_debug("Task file error\n");
     		return 0;
 		}
 	}    
@@ -466,7 +465,7 @@ int _ahci_write(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, 
     cmd_header->prdtl = (uint16_t)((count-1)>>4) + 1;    // PRDT entries count
     
     cmd_tbl = (struct ahci_hba_cmd_tbl*)(((cmd_header->ctbau) << 32) | cmd_header->ctba);
-    kMemSet(cmd_tbl, 0, sizeof(struct ahci_hba_cmd_tbl) +
+    memset(cmd_tbl, 0, sizeof(struct ahci_hba_cmd_tbl) +
         (cmd_header->prdtl-1)*sizeof(struct ahci_hba_prdt_entry));
 
     // 8K bytes (16 sectors) per PRDT
@@ -480,15 +479,15 @@ int _ahci_write(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, 
         count -= 16;    // 16 sectors
     }
     // Last entry
-    //kPrintff("TTT%d %x %d\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3), count);
+    //debugf("TTT%d %x %d\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3), count);
     cmd_tbl->prdt_entry[i].dba = (u32)buf;
     cmd_tbl->prdt_entry[i].dbau = 0;
-    //kPrintfk("dba & dbau: %p %p\n", cmd_tbl ->prdt_entry[i].dba, cmd_tbl -> prdt_entry[i].dbau);
-    //kPrintff("TT2%d %x %d\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3), count);
+    //debugk("dba & dbau: %p %p\n", cmd_tbl ->prdt_entry[i].dba, cmd_tbl -> prdt_entry[i].dbau);
+    //debugf("TT2%d %x %d\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3), count);
     cmd_tbl->prdt_entry[i].dbc = (count<<9)-1;   // 512 bytes per sector
-    //kPrintff("TT3%d %x %d\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3), count);
+    //debugf("TT3%d %x %d\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3), count);
     //cmd_tbl->prdt_entry[i].i = 1;
-    //kPrintff("%d %x\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3));
+    //debugf("%d %x\n", sizeof(HBA_PRDT_ENTRY), *(((uint32_t *)&cmd_tbl->prdt_entry[i])+3));
 
     // Setup command
     struct ahci_hba_fis_reg_h2d *cmd_fis = (struct ahci_hba_fis_reg_h2d *)(&cmd_tbl->cfis);
@@ -515,25 +514,25 @@ int _ahci_write(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, 
     }
     if (spin == 1000000)
     {
-        //kPrintfk("Port is hung\n");
+        //debugk("Port is hung\n");
         return 0;
     }
 
     port->ci = 1 << slot; // Issue command
-    //kPrintfk("PORT INFO: %x %d %d\n", port, port->ci, port->tfd);
+    //debugk("PORT INFO: %x %d %d\n", port, port->ci, port->tfd);
 
     // Wait for completion
     while (1)
     {
-        kPrintf("Writing disk...\n");
+        ahci_debug("Writing disk...\n");
         // In some longer duration reads, it may be helpful to spin on the DPS bit
         // in the PxIS port field as well (1 << 5)
-        //kPrintfk("value: %d\n", (port -> ci & (1<<slot) )  );
+        //debugk("value: %d\n", (port -> ci & (1<<slot) )  );
         if ((port->ci & (1<<slot)) == 0)
             break;
         if (port->is & HBA_PxIS_TFES)   // Task file error
         {
-            kPrintf("1Write disk error\n");
+            ahci_debug("1Write disk error\n");
             return 0;
         }
     }
@@ -541,7 +540,7 @@ int _ahci_write(struct ahci_hba_port *port, uint64_t start_lba, uint32_t count, 
     // Check again
     if (port->is & HBA_PxIS_TFES)
     {
-        kPrintf("2Write disk error\n");
+        ahci_debug("2Write disk error\n");
         return 0;
     }
 
@@ -655,15 +654,15 @@ int find_ahci_device(struct ahci_hba_mem_reg **_abar) {
 
             if(vendor==0x8086 && device==0x2922){
                 *_abar = (struct ahci_hba_mem_reg *)ReadWord(bus,slot,0,(0x24|0x0)); 
-                kPrintf("BUS[0x%x],DEVICE[0x%x],VENDOR[0x%x],DEVICE[0x%x]\n",bus,slot,vendor,device);
-                kPrintf("AHCI ContBar 5=[0x%x]\n", *_abar); 
+                ahci_debug("BUS[0x%x],DEVICE[0x%x],VENDOR[0x%x],DEVICE[0x%x]\n",bus,slot,vendor,device);
+                ahci_debug("AHCI ContBar 5=[0x%x]\n", *_abar); 
 
 				return 0;
             }
         }
     }
 
-    kPrintf("OS Didn`t find any devices on PCI Bus\n");
+    ahci_debug("OS Didn`t find any devices on PCI Bus\n");
 
     return -ENODEV;
 }

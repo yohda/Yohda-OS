@@ -1,10 +1,10 @@
 #include "type.h"
 #include "Console.h"
-#include "errno.h"
-#include "mm.h"
-#include "mmi.h"
+#include "error.h"
+#include "mm/mm.h"
+#include "mm/mmi.h"
 #include "debug.h"
-#include "pool.h"
+#include "mm/pool.h"
 #include "bitmap.h"
 
 /* For Test */

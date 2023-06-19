@@ -1,11 +1,11 @@
 // https://elixir.bootlin.com/linux/latest/source/fs/fat
-#include "fat.h"
+#include "fs/fat.h"
 #include "error.h"
 #include "debug.h"
-#include "Utility.h"
-#include "ahci.h"
-#include "PIT.h"
-#include "mm.h"
+//#include "Utility.h"
+#include "block/ahci.h"
+//#include "PIT.h"
+#include "mmi.h"
 #include "string.h"
 #include "bitmap.h"
 #include "stack.h"
@@ -250,7 +250,7 @@ int fat_init(u64 *fat_base)
 
 	fat_debug("bitmap %d, %d\n", (fat.fsn*fat.bps)/FAT_ENTRY_BYTE, fat.csn);
 
-	fmm.c.bp = mm_alloc(8*fat.ds, MM_KL);
+	fmm.c.bp = yalloc(8*fat.ds);
 	if(!fmm.c.bp)
 		return err_dbg(-10, "\n");	
 
@@ -324,7 +324,7 @@ static int fat_get_entries(const int clu)
 	if(clu < 0) 
 		err_dbg(-1, "\n");
 
-	ent = mm_alloc(fat.ds, MM_KL);
+	ent = yalloc(fat.ds);
 	if(!ent) 
 		err_dbg(-4, "\n");
 
@@ -342,7 +342,7 @@ static int fat_get_entries(const int clu)
 		n++;	
 	}
 
-	mm_free(ent);
+	yfree(ent);
 	
 	return n;
 }
@@ -831,7 +831,7 @@ static int fat_alloc_clus(struct fat_region *rgn, struct fat_file *file)
 		return -ENOMEM;
 	}
 
-	file->clus = mm_alloc(sizeof(int), MM_KL);
+	file->clus = yalloc(sizeof(int));
 	if(!file->clus) 
 		err_dbg(-1, "err\n");
 
@@ -947,7 +947,7 @@ static fat_parse_clus(struct fat_file *file, const int clus)
 	}
 
 	if(!file->clus) {
-		file->clus = mm_alloc(sizeof(int), MM_KL);
+		file->clus = yalloc(sizeof(int));
 	}
 
 	if(!file->clus) {
@@ -1035,7 +1035,7 @@ int fat_sync()
 	struct list_node *node;
 	int err = -1, ost = 0;
 	
-	de = mm_alloc(fat.ds*4, MM_KL);
+	de = yalloc(fat.ds*4);
 	if(!de)
 		err_dbg(-1, "err\n");
 	
@@ -1055,7 +1055,7 @@ int fat_sync()
 	if(err < 0)
 		err_dbg(-12, "err\n");
 
-	mm_free(base);
+	yfree(base);
 
 	return 0;
 }
@@ -1123,7 +1123,7 @@ static int _fat_crt_dir(const char *path, struct fat_dir *dir, const u8 attr)
 	if(!path)
 		err_dbg(-1, "err\n");
 
-	tmp = mm_alloc(sizeof(struct fat_dir), MM_KL);
+	tmp = yalloc(sizeof(struct fat_dir));
 	if(!tmp)
 		err_dbg(-4, "err\n");
 
@@ -1194,7 +1194,7 @@ int fat_parse_dir(struct fat_dir *dir)
 	if(!dir)
 		err_dbg(err, "err\n");
 
-	base = mm_alloc(fat.ds, MM_KL);
+	base = yalloc(fat.ds);
 	if(!base)
 		err_dbg(err, "err\n");
 
@@ -1212,7 +1212,7 @@ int fat_parse_dir(struct fat_dir *dir)
 		err_dbg(err, "directory entry counter zero\n");
 
 	dir->num = err;
-	struct fat_file *f = mm_alloc(sizeof(struct fat_file)*(dir->num), MM_KL);
+	struct fat_file *f = yalloc(sizeof(struct fat_file)*(dir->num));
 	memcpy(f, tmps, sizeof(struct fat_file)*(dir->num));
 	for(i=0 ; i<dir->num ; i++) {
 		//fat_debug("addr#0x%x, name#%s, attr#0x%x, clus#%d\n", tmps+i, f[i].name, f[i].attr, f[i].clus[0]);
@@ -1245,7 +1245,7 @@ static int fat_crt_dir_tree(const struct bst_node *root)
 		err_dbg(-12, "err\n");
 
 	if(n)
-		dirs = mm_alloc(sizeof(struct fat_dir)*n, MM_KL);
+		dirs = yalloc(sizeof(struct fat_dir)*n);
 
 	if(!dirs)
 		err_dbg(-15, "err\n");
@@ -1272,7 +1272,7 @@ int fat_init_rootfs()
 	if(!stack_init(&stk, sizeof(struct fat_dir)*200)) 
 		err_dbg(-5, "err\n");
 
-	ent = mm_alloc(fat.ds, MM_KL);
+	ent = yalloc(fat.ds);
 	if(!ent)
 		err_dbg(-8, "err\n");
 
@@ -1290,7 +1290,7 @@ int fat_init_rootfs()
 	if(err < 0)
 		err_dbg(-18, "err\n");
 
-	mm_free(ent);	
+	yfree(ent);	
 
 	list_init_head(&root.fl);
 	err = fat_parse_dir(&root); // parse root directory 

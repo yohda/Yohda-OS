@@ -1,4 +1,5 @@
-#include "Console.h"
+//#include "Console.h"
+#include "io.h"
 
 #define err_dbg(err, fmt, ...) ({ 	\
 		debug(fmt, ##__VA_ARGS__);	\

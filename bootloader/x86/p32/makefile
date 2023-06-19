@@ -34,10 +34,6 @@ endif
 
 all: pre ${DBG_IMG} post 
 
-#asm: pre $(ASM_OBJS) 
-#	$(LD) $(LDFLAG) $(ASM_OBJS) -o kernel.elf	
-#	objcopy -O binary -S kernel.elf ${IMG}
-
 pre:
 	mkdir -p $(OBJ_DIR)
 	make -C ../p16
@@ -79,7 +75,7 @@ i440-debug:
 	$(QE32) $(QE32_I440FX_FLAG) -fda $(OBJ_DIR)/${IMG} -S -s
 
 gdb:
-	gdb $(OBJ_DIR)/${DBG_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break _pbl_start' -ex 'continue'
+	gdb $(OBJ_DIR)/${DBG_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break main.c:18' -ex 'continue'
 
 clean:
 	rm -rf $(OBJ_DIR)	

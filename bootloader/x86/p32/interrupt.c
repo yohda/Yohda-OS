@@ -23,21 +23,25 @@ void isr_common_handler(const int irq)
 void isr_division_error_handler(const int irq)
 {
 	vga_text_write(__func__);	
+	while(1);
 }
 
 void isr_non_maskable_interrupt_handler(const int irq)
 {
 	vga_text_write(__func__);	
+	while(1);
 }
 
-void isr_general_protection_fault_handler(const int irq)
+void isr_general_protection_fault_handler(const int irq, const u32 err)
 {
 	vga_text_write(__func__);	
+	while(1);
 }
 
 void isr_page_fault_handler(const int irq, const u32 err)
 {
 	vga_text_write(__func__);	
+	while(1);
 }
 
 void isr_system_timer_handler(const int irq)

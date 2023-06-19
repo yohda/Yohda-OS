@@ -2,7 +2,7 @@
 #define _AHCI_H_
 
 #include "type.h"
-#include "file.h"
+//#include "file.h"
 #include "list.h"
 #include "bstree.h"
 #include "bitmap.h"

@@ -1,5 +1,5 @@
 #include "bitmap.h"
-#include "mm.h"
+#include "mm/mmi.h"
 #include "debug.h"
 #include "error.h"
 
@@ -30,7 +30,7 @@ int bitmap_alloc(struct bitmap *bmp, const u32 bit, const u32 size)
 	if(bit < 1 || size < 1)
 		return -1;
 
-	bmp->base = mm_alloc((bit/BYTE_UNIT)*size, MM_KL);
+	bmp->base = yalloc((bit/BYTE_UNIT)*size);
 	if(!bmp->base)
 		return -1;
 
