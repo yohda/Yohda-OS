@@ -5,7 +5,7 @@
 
 entry:
 
-PBL_ENTRY_POINT equ 0x100000
+; 32-bt Kernel meta data
 
 DISK_SEG_LIMIT  equ 0xFFFF
 BIOS_READ_SECS	equ 0x02
@@ -57,37 +57,47 @@ _a20_sec:
 _load_kernel:
 	pusha
 	
-	mov ax, 0xFFFF
+	mov ax, 0x1000 						; kernel base address of protected mode
 	mov es, ax
-	mov bx, 0x10
+	xor bx, bx
 
 	_disk_loop:
-		; migration address
-		mov ax, 512
-		mul word [secs]
-		mov cx, bx
-		add bx, ax
-		jc _disk_loop_exit
-		
-		mov bx, cx
-
 		; read the sectors 
-		mov al, [secs]					; sector count to read
+		mov al, 1						; read one sector
 		mov ah, BIOS_READ_SECS			; BIOS INT 13h F2h:Read Sectors from drive
 		mov ch, byte [start_cylin]		; start to cylinder
 		mov cl,	byte [start_sec]		; start to sector
 		mov dh, byte [start_head]		; start to head
+		mov dl, 0						; set disk drive to 0
 
 		int 0x13						; request BIOS INT13h F2h
-		jc _error						; if carry set, error
+		jc _error						; If carry set, error
 		
-		cmp al, [secs]					; if successed, return the read sectors count to al
+		cmp al, 1						; If successed to read, return the read sectors count to al
 		jne _error	
 
-		; increment offset(bx)
+		; migration address
 		mov ax, 512
-		mul word [secs]
 		add bx, ax
+		jnc _disk_update_chs
+	
+		; a carry happends		
+		xor bx, bx
+		mov ax, es
+		add ax, 0x1000
+		mov es, ax	
+		cmp ax, 0x5000					; kernel size of protected model
+		je _disk_loop_exit
+
+		; increment the read sector count
+		_disk_update_chs:
+		inc word [start_sec]
+		mov ax, [start_sec]
+		mov dx, [secs]
+		cmp ax, dx
+		jle _disk_loop
+
+		mov word [start_sec], 1
 
 		; calculate next head count	
 		mov ax, [heads]
@@ -133,7 +143,7 @@ _pmode:
 
 [BITS 32]
 _penter:
-	jmp 0x100000;	
+	jmp 0x10000;					; boot loader entry point of protected mode	
 
 [BITS 16]	
 vga_text_print:

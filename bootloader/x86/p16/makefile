@@ -1,10 +1,7 @@
 ASMS:=$(wildcard *.asm)
 OBJS:=$(ASMS:.asm=.o)
 
-INC:=/home/yohda/workspace/SW/bare-metal/yohdaOS/chap16/02.Kernel64/src/include
 OBJ_DIR:=temp
-GCC:=i686-elf-gcc
-CFLAG:=-ffreestanding -g -Wall -Wextra -nostdlib -nostartfiles -I$(INC)
 LD:=i686-elf-gcc
 LDFLAG:= -ffreestanding -O2 -nostdlib -T link.ld
 
@@ -52,10 +49,7 @@ host-debug:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
 
 g16:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:_gdt_sec' -ex 'continue'
-
-g32:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break pbl.asm:_pbl_start' -ex 'continue'
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:_load_kernel' -ex 'continue'
 
 clean:
 	rm -rf $(OBJ_DIR)	
