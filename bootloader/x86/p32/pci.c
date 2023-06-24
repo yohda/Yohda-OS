@@ -1,60 +1,47 @@
 #include "bus/pci.h"
 #include "string.h"
 #include "mm/mmi.h"
+#include "debug.h"
+#include "list.h"
+#include "block/ahci.h"
+#include "ata.h"
 
 extern void outd(const u16 addr, const u32 value);
 extern u32 inw(const u16 addr);
-
-#define PCI_BUS_MAX 	(256)
-#define PCI_DEV_MAX		(32)
-#define PCI_FUNC_MAX	(8)
-
-#define PCI_CONFIG_ADDR	(0xCF8)
-#define PCI_CONFIG_DATA	(0xCFC)
+extern u32 ind(const u16 addr);
 
 #define PCI_GET_CONFIG_ADDR(x,y,z) ((0x80000000)|((x)<<(16))|((y)<<(11))|((z)<<(8)))
 
 #define PCI_NO_DEVICE	(0xFFFF)
 #define PCI_MULTI_FUNC 	(0x80)
-#define PCI_ADDR_ALIGN	(0xFC)
 
 /* PCI Configuration Offset */
-#define PCI_OFFSET_VEN	(0x00)&(PCI_ADDR_ALIGN)
-#define PCI_OFFSET_DEV	(0x02)&(PCI_ADDR_ALIGN)
-#define PCI_OFFSET_CLS	(0x09)&(PCI_ADDR_ALIGN)
-#define PCI_OFFSET_HDR 	(0x0E)&(PCI_ADDR_ALIGN)
 
 #define PCI_CLS(x) (((x)>>(16))&(0xFF))
 #define PCI_SUB(x) (((x)>>(8))&(0xFF))
 #define PCI_PIF(x) ((x)&(0xFF))
 
-struct pci_dev {
-	u32 bus;
-	u32 dev;
-	u32 func;
-};
+struct pci_sys pci;
 
-struct pci_dev pci[255];
-
-u16 pci_get_dev(const struct pci_dev *dev)
+u16 pci_get_dev(const u8 bus, const u8 dev, const u8 func)
 {
 	u32 addr = 0;
 
-	addr = PCI_GET_CONFIG_ADDR(dev->bus, dev->dev, dev->func); 
-	addr |= PCI_OFFSET_DEV;
+	addr = PCI_GET_CONFIG_ADDR(bus, dev, func); 
+	addr |= PCI_CFG_OFFSET_DEV;
 
 	outd(PCI_CONFIG_ADDR, addr);	
 
-	return (u16)((inw(PCI_CONFIG_DATA) >> 16) & 0xFF);
+	return (u16)((ind(PCI_CONFIG_DATA) >> 16) & 0xFFFF);
 }
 
-u16 pci_get_ven(const struct pci_dev *dev)
+u16 pci_get_ven(const u8 bus, const u8 dev, const u8 func)
 {
 	u32 addr = 0;
 	u16 ret;
 
-	addr = PCI_GET_CONFIG_ADDR(dev->bus, dev->dev, dev->func); 
-	addr |= PCI_OFFSET_VEN;
+	addr = PCI_GET_CONFIG_ADDR(bus, dev, func); 
+	addr |= PCI_CFG_OFFSET_VEN;
 
 	outd(PCI_CONFIG_ADDR, addr);	
 	
@@ -62,84 +49,106 @@ u16 pci_get_ven(const struct pci_dev *dev)
 	return ret;
 }
 
-u8 pci_get_hdr(const struct pci_dev *dev)
+u8 pci_get_hdr(const u8 bus, const u8 dev, const u8 func)
 {
 	u32 addr = 0;
 	u8 ret;
 
-	addr = PCI_GET_CONFIG_ADDR(dev->bus, dev->dev, dev->func); 
-	addr |= PCI_OFFSET_HDR;
+	addr = PCI_GET_CONFIG_ADDR(bus, dev, func); 
+	addr |= PCI_CFG_OFFSET_HDR;
 
 	outd(PCI_CONFIG_ADDR, addr);	
 
-	ret = (u8)((inw(PCI_CONFIG_DATA) >> 16) & 0xFF);
+	ret = (u8)((ind(PCI_CONFIG_DATA) >> 16) & 0xFF);
 	return ret;
 }
 
-u32 pci_get_cls(const struct pci_dev *dev)
+
+u32 pci_get_cls(const u8 bus, const u8 dev, const u8 func)
 {
 	u32 addr = 0;
 	u32 ret;
 
-	addr = PCI_GET_CONFIG_ADDR(dev->bus, dev->dev, dev->func); 
-	addr |= PCI_OFFSET_CLS;
+	addr = PCI_GET_CONFIG_ADDR(bus, dev, func); 
+	addr |= PCI_CFG_OFFSET_CLS;
 
 	outd(PCI_CONFIG_ADDR, addr);	
 	
-	ret = (u32)((inw(PCI_CONFIG_DATA) >> 8) & 0x00FFFFFF);
+	ret = (u32)((ind(PCI_CONFIG_DATA) >> 8) & 0x00FFFFFF);
 	return ret;
 }
 
-/*
-u8 pci_find_dev(const u8 bus, const u8 slot) {
-    u16 vendor, device;
-    if ((vendor = pciConfigReadWord(bus, slot, 0, 0)) != 0xFFFF) {
-       device = pciConfigReadWord(bus, slot, 0, 2);
-       . . .
-    } return (vendor);
-}
-*/
+u32 pci_get_bar(const u8 bus, const u8 dev, const u8 func, const u8 bar)
+{
+	u32 addr = 0;
+	u32 ret;
 
-static void pci_enum_func(const u8 bus, const u8 dev, const u8 func)
+	addr = PCI_GET_CONFIG_ADDR(bus, dev, func); 
+	addr |= bar;
+
+	outd(PCI_CONFIG_ADDR, addr);	
+	
+	ret = (u32)ind(PCI_CONFIG_DATA);
+	return ret;
+}
+
+struct pci_func pci_find_dev(const u16 vid, const u16 did) 
+{
+
+}
+
+static void pci_enum_func(const u8 bus, const u8 dev, const u8 func, struct pci_func *node)
 {
 	u8 cls = 0, sub = 0, pif = 0;
-	struct pci_dev pdev;
 	u32 class;
-	
-	pdev.bus = bus;
-	pdev.dev = dev;
-	pdev.func = func;
 
-	class = pci_get_cls(&pdev);
-	
-	pif = (u8)PCI_PIF(class);
-	sub = (u8)PCI_SUB(class);
-	cls = (u8)PCI_CLS(class);	
+	class = pci_get_cls(bus, dev, func);
+
+	node->func = func;	
+	node->pif = (u8)PCI_PIF(class);
+	node->sub = (u8)PCI_SUB(class);
+	node->cls = (u8)PCI_CLS(class);	
 }
 
-static void pci_enum_dev(const u8 bus, const u8 dev)
+static void pci_enum_dev(const u8 bus, const u8 slot)
 {
-	u16 ven = PCI_NO_DEVICE, hdr = PCI_MULTI_FUNC;
-	struct pci_dev pdev;
-	struct pci_dev *evf;
+	u16 ven = PCI_NO_DEVICE, hdr = PCI_MULTI_FUNC, dev = 0;
+	struct pci_dev *pdev = NULL;
+	struct pci_func *pfunc = NULL;
 	int i;
 
-	memset(&pdev, 0, sizeof(pdev));	
-
-	pdev.bus = bus;
-	pdev.dev = dev;
-
-	ven = pci_get_ven(&pdev);
+	ven = pci_get_ven(bus, slot, 0);
 	if(ven == PCI_NO_DEVICE)
 			return ;
-		
-	hdr = pci_get_hdr(&pdev);
-	
+
+	pdev = yalloc(sizeof(struct pci_dev));
+	if(!pdev)
+		err_dbg(-1, "failed to create pci device\n");
+
+	list_init_head(&pdev->funcs);
+
+	pdev->bus = bus;
+	pdev->slot = slot;
+	pdev->ven_id = ven;
+
+	dev = pci_get_dev(bus, slot, 0);	
+	hdr = pci_get_hdr(bus, slot, 0);
+
+	pdev->dev_id = dev;
+
+	pfunc = yalloc(sizeof(struct pci_func));
+	if(!pfunc)
+		err_dbg(-1, "failed to create pci function\n");
+
+	pci_enum_func(bus, slot, 0, pfunc);
+	list_add(&pdev->funcs, &pfunc->node);
+
+	debug("bus#%d, dev#%x, vender#0x%x\n", bus, dev, ven);
 	if(!(hdr & PCI_MULTI_FUNC))
 		return ;
 
 	for(i=1; i<PCI_FUNC_MAX; i++) {
-		pci_enum_func(bus, dev, i);
+		pci_enum_func(bus, slot, i, NULL); // Not yet, yohdaOS doesn`t support pci device supporting multiple-fucions devic
 	}
 }
 
@@ -154,7 +163,9 @@ static void pci_enumerate()
 	}	
 }
 
-void pci_init()
+void pci_init()	
 {
+	list_init_head(&pci.buses);
+	
 	pci_enumerate();
 }

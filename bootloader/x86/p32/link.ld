@@ -1,6 +1,7 @@
 SECTIONS
 {
-	.text 0x100000 :
+	. = 0x10000;
+	.text :
 	{
 		pbl.o (.text)	
 		main.o (.text)
@@ -23,28 +24,5 @@ SECTIONS
 		*(COMMON)
     }
 
-	ebl_text = .;
-/*
-	. = 0xC0100000;
-	.text ALIGN(0x1000): AT(ADDR(.text) - 0xC0000000)
-	{
-		*(.text)
-	}
-
-	.rodata ALIGN(0x1000) : AT(ADDR(.rodata) - 0xC0000000)
-   	{
-		*(.rodata)
-	}	
-
-	.data ALIGN(0x1000): AT(ADDR(.data) - 0xC0000000)
-    {
-        *(.data)
-    }
-
-	.bss ALIGN(0x1000): AT(ADDR(.bss) - 0xC0000000)
-    {
-        *(.bss)
-		*(COMMON)
-    }
-			*/
+	. = ALIGN(0x50000);
 }

@@ -5,12 +5,13 @@ section .text
 
 CPUID_STD_BASE_CMD equ 0x00000000
 CPUID_EXT_BASE_CMD equ 0x80000000
-CPUID_EXT_LM equ 1<<29
+CPUID_EXT_LONG_MODE 	equ 1<<29
+CPUID_EXT_PAGE_1GB 		equ	1<<26
 
-global cpuid_check_valid
+global cpu_init, cli, sti, mode64
 
-cpuid_check_valid:
-	push ebp		; cpuid_check_valid stat
+cpu_init:
+	push ebp		; cpuid_check_valid start
 	mov ebp, esp	
 
 _cpuid_is_supported:
@@ -36,9 +37,10 @@ _cpuid_is_supported:
 
 	.cpuid_no_cpuid:
 		mov eax, 0 	
+		jmp _end
 
 	.end:
-		mov dword [CPUID_IS_VALID], eax		
+		mov dword [CPUID], eax		
 	
 	pop ecx
 	pop eax	
@@ -62,43 +64,91 @@ _cpuid_check_std_func:
 	
 	pop eax
 
-_cpuid_x64_is_supported:
+_cpuid_x64:
 	push eax
 
 	mov eax, CPUID_EXT_BASE_CMD
 	cpuid
 	
 	cmp eax, CPUID_EXT_BASE_CMD
-	jbe .cpuid_no_x64
+	jbe .nok
 		and eax, 0xFF
 		mov dword [CPUID_EXT_FUNCS], eax
 
 		mov eax, 0x80000001					; call extended function(0x8000_0001) to get whether or not is supported long mode
 		cpuid
 
-		and edx, CPUID_EXT_LM				; long mode bit 29
+		and edx, CPUID_EXT_LONG_MODE		; long mode bit 29
 		cmp edx, 0							; compare the result and 0. If the result compared is zero, long mode is not supported. 
-		je .cpuid_no_x64
+		je .nok
 		mov eax, 1	
-		jmp .end
+		jmp .ok
 
-	.cpuid_no_x64:
+	.nok:
 		mov eax, 0
 
-	.end:
-		mov dword [CPUID_X64], eax
+	.ok:
+		mov dword [CPUID_64], eax
 		
 	pop eax
 
-	pop ebp ; cpuid_check_valid stat 
+_cpuid_page_1gb:
+	push eax
+
+	mov eax, 0x80000001					; call extended function(0x8000_0001) to get whether or not is supported long mode
+	cpuid
+
+	and edx, CPUID_EXT_PAGE_1GB		; page 1GB bit 26
+	cmp edx, 0
+	je .nok
+		mov eax, 1	
+		jmp .ok
+
+	.nok:
+		mov eax, 0
+
+	.ok:
+		mov dword [CPUID_PAGE_1GB], eax
+		
+	pop eax
+
+_end:
+	pop ebp ; cpuid_check_valid end
 	ret
 
-section .data
-global CPUID_IS_VALID, CPUID_X64, CPUID_EXT_FUNCS, CPUID_STD_FUNCS
+;;;;;; interrupt
+cli:
+	push ebp
+	mov ebp, esp
+	
+	cli
 
-CPUID_IS_VALID:			dd 0
-CPUID_X64:				dd 0
+	pop ebp
+	ret 
+
+sti:
+	push ebp
+	mov ebp, esp
+	
+	sti
+
+	pop ebp
+	ret
+
+;;;;;; mode change to 64
+mode64:
+	cli
+	jmp 0x100000
+
+
+;;;;;; data section
+section .data
+global CPUID, CPUID_64, CPUID_EXT_FUNCS, CPUID_PAGE_1GB, CPUID_STD_FUNCS
+
+CPUID:					dd 0
+CPUID_64:				dd 0
 CPUID_EXT_FUNCS:		dd 0
+CPUID_PAGE_1GB:			dd 0
 CPUID_STD_FUNCS: 		dd 0
 
 %endif

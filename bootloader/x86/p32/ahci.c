@@ -115,87 +115,6 @@ int ahci_init(void)
 					ahci_debug("SATA drive found at port %d\n", i);
 					ahci_port_rebase(&abar->port[i], i);
 					mgr.active_port = i;
-/*
-					u16 *buf16 = (u16 *)AHCI_PORT_MAX_MEMORY_SIZE;
-
-					*(buf16+0) = 0x1122;
-					*(buf16+1) = 0x3344;
-					*(buf16+2) = 0x5566;
-					*(buf16+3) = 0x7788;
-					*(buf16+4) = 0x99AA;
-					*(buf16+5) = 0xBBCC;
-					*(buf16+6) = 0xDDEE;
-					*(buf16+7) = 0xFF00;
-
-					_ahci_write(&abar->port[i], 0, 1, buf16);
-
-					_ahci_read(&abar->port[i], 0, 1, read_buf);
-						
-					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
-*/
-/*
-					u32 *buf32 = (u32 *)AHCI_PORT_MAX_MEMORY_SIZE;
-					*(buf32+0) = 0x11223344;
-					*(buf32+1) = 0x55667788;
-					*(buf32+2) = 0x99AABBCC;
-					*(buf32+3) = 0xDDEEFF00;
-
-					_ahci_write(&abar->port[i], 0, 1, buf32);
-
-					_ahci_read(&abar->port[i], 0, 1, read_buf);
-						
-					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
-*/
-/*
-					u64 *buf64 = (u64 *)AHCI_PORT_MAX_MEMORY_SIZE;
-					
-				 	*(buf64+0) = 0x1122334455667788;
-					*(buf64+1) = 0x99AABBCCDDEEFF00;
-
-					_ahci_write(&abar->port[i], 0, 1, buf64);
-
-					_ahci_read(&abar->port[i], 0, 1, read_buf);
-						
-					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
-*/	
-					//_ahci_read(&abar->port[i], 8208, 1, &yohda);
-							
-					//ahci_debug("read_buf[0] - %s\n", yohda.name);
-					//ahci_debug("read_buf[1] - 0x%x\n", yohda.attr);
-					//ahci_debug("read_buf[2] - 0x%x\n", yohda.create_time);
-					//ahci_debug("read_buf[3] - 0x%x\n", yohda.file_size);
-					//ahci_debug("read_buf[4] - 0x%x\n", *(read_buf+4));
-					//ahci_debug("read_buf[5] - 0x%x\n", *(read_buf+5));
-					//ahci_debug("read_buf[6] - 0x%x\n", *(read_buf+6));
-					//ahci_debug("read_buf[7] - 0x%x\n", *(read_buf+7));
-					//ahci_debug("read_buf[8] - 0x%x\n", *(read_buf+8));
-					//ahci_debug("read_buf[9] - 0x%x\n", *(read_buf+9));
-					
-					_ahci_read(&abar->port[i], 0, 1, read_buf);
-					//fat_init(read_buf);	
-/*
-					_ahci_read(&abar->port[i], 0, 1, read_buf);
-						
-					ahci_debug("1read_buf[0] - 0x%x\n", *(read_buf+0));
-					ahci_debug("1read_buf[1] - 0x%x\n", *(read_buf+1));
-					ahci_debug("1read_buf[2] - 0x%x\n", *(read_buf+2));
-					ahci_debug("1read_buf[3] - 0x%x\n", *(read_buf+3));
-					ahci_debug("1read_buf[4] - 0x%x\n", *(read_buf+4));
-*/
-					//ahci_debug("1read_buf[5] - 0x%x\n", *(read_buf+5));
-					//ahci_debug("1read_buf[6] - 0x%x\n", *(read_buf+6));
-					//ahci_debug("1read_buf[7] - 0x%x\n", *(read_buf+7));
-					//ahci_debug("1read_buf[8] - 0x%x\n", *(read_buf+8));
-					//ahci_debug("1read_buf[9] - 0x%x\n", *(read_buf+9));
 				break;
 				case AHCI_DEV_SATAPI:
 					ahci_debug("SATAPI drive found at port %d\n", i);
@@ -584,51 +503,19 @@ int ahci_find_empty_cmd_slot(struct ahci_hba_port *port)
 	return -EBUSY;
 }
 
-static inline void sysOutLong( unsigned short port, uint32_t val ){
-    __asm__ volatile( "outl %0, %1"
-                  : : "a"(val), "Nd"(port) );
-}
-
-static inline uint32_t sysInLong( unsigned short port ){
-    uint32_t ret;
-    __asm__ volatile( "inl %1, %0"
-                  : "=a"(ret) : "Nd"(port) );
-    return ret;
-}
-
-unsigned long ReadWord (unsigned short bus, unsigned short slot,unsigned short func, unsigned short offset){
-    uint32_t address;
-    uint32_t lbus = (uint32_t)bus;
-    uint32_t lslot = (uint32_t)slot;
-    uint32_t lfunc = (uint32_t)func;
-    unsigned long tmp = 0;
-
-
-    address = (uint32_t)((lbus << 16) | (lslot << 11) |
-              (lfunc << 8) | (offset & 0xfc) | ((uint32_t)0x80000000));
-    
-	sysOutLong (0xCF8, address);
-    
-	tmp = (unsigned long)(sysInLong (0xCFC) /* & 0xffff*/);
-    
-	return (tmp);
- }
-
 // in the time when below the function was called, there is no PCI MMIO. So, you must use PMIO to find AHCI device.
 int find_ahci_device(struct ahci_hba_mem_reg **_abar) {
     int bus;
     int slot;
    	u16 vendor,device;
 
-	pci_find_dev(0x8086, 0x2922);
-
     for(bus = 0; bus < 256; bus++) {
         for(slot = 0; slot < 32; slot++) {
             vendor = pci_get_ven(bus, slot, 0); 
 			device = pci_get_dev(bus, slot, 0);			
 
-            if(vendor==0x8086 && device==0x2922){
-                *_abar = (struct ahci_hba_mem_reg *)ReadWord(bus, slot, 0, PCI_CFG_OFFSET_BAR5); 
+            if(vendor==PCI_VENDOR_INTEL && device==PCI_DEVICE_AHCI){
+                *_abar = (struct ahci_hba_mem_reg *)pci_get_bar(bus, slot, 0, PCI_CFG_OFFSET_BAR5); 
                 ahci_debug("BUS[0x%x],DEVICE[0x%x],VENDOR[0x%x],DEVICE[0x%x]\n",bus,slot,vendor,device);
                 ahci_debug("AHCI ContBar 5=[0x%x]\n", *_abar); 
 
@@ -641,4 +528,3 @@ int find_ahci_device(struct ahci_hba_mem_reg **_abar) {
 
     return -ENODEV;
 }
-

@@ -10,6 +10,9 @@ global _pbl_start
 
 _pbl_start: 
 	cli
+	
+	xor ecx, ecx
+	pop ecx
 
 	; After entering into protected mode, you just should load data segment into each data segments.
 	mov ax, 0x10 
@@ -24,6 +27,7 @@ _pbl_start:
 	mov ebp, 0x80000	
 	mov esp, 0x80000
 
+	push ecx
 	call main
 	jmp $				; Nevere come here
 
