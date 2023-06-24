@@ -100,6 +100,10 @@ _disk_get_infos:
 	mov byte [heads], dh 		; dh - number of head 
 	inc word [heads] 			; index of head starts = number - 1
 
+	mov ax, [secs]
+	cmp ax, 8
+	jl _disk_not_supported
+	
 	popa
 
 _disk_read:
@@ -109,15 +113,15 @@ _disk_read:
 	mov es, ax
 	xor bx, bx
 
-	mov al, [secs]	
+	mov al, 4	
 	dec al
 	mov ah, BIOS_READ_SECS	; BIOS INT 13h F2h:Read Sectors from drive
 	mov ch, 0				; start to cylinder
 	mov cl,	2				; start to sector
 	mov dh, 0 				; start to head
 
-	mov word [sbl_start_sec], 1
-	mov word [sbl_start_head], 1
+	mov word [sbl_start_sec], 6 
+	mov word [sbl_start_head], 0
 	mov word [sbl_start_cylin], 0
 
 	int 0x13				; request BIOS INT13h F2h
@@ -183,6 +187,9 @@ vga_text_print:
 
 	ret 2
 
+_disk_not_supported:
+	push DISK_ERR_MSG               
+    call vga_text_print
 _error:
 	jmp $ 
 
@@ -199,7 +206,7 @@ vga_rows	: 	dw 0
 SEC_BOOT_MSG:	db 'Ready for jumping secondary bootloader', 0 	
 BOOT_MSG:    	db 'YohdaOS First Boot Loader Start', 0 
 ACT_PART_MSG:	db 'There exist a active partition', 0
-ERR_MSG:		db 'Happned the error. So, stop the process...', 0
+DISK_ERR_MSG:	db 'This disk is not supported', 0
 
 times (446 - ($-$$)) db 0
 times 16 db 0

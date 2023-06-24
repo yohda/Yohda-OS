@@ -3,6 +3,8 @@
 
 [BITS 16]
 
+extern main
+
 entry:
 
 ; 32-bt Kernel meta data
@@ -61,6 +63,8 @@ _load_kernel:
 	mov es, ax
 	xor bx, bx
 
+	mov word [total_read_sec], 1 + 4 			; 1 - Size of PBL , 4 - Size of SBL
+	
 	_disk_loop:
 		; read the sectors 
 		mov al, 1						; read one sector
@@ -75,6 +79,9 @@ _load_kernel:
 		
 		cmp al, 1						; If successed to read, return the read sectors count to al
 		jne _error	
+
+		; count total sectors to read
+		inc word [total_read_sec]
 
 		; migration address
 		mov ax, 512
@@ -143,6 +150,7 @@ _pmode:
 
 [BITS 32]
 _penter:
+	push word [total_read_sec]
 	jmp 0x10000;					; boot loader entry point of protected mode	
 
 [BITS 16]	
@@ -220,7 +228,7 @@ _gdtr:
 	dw 0 
 	dd 0
 
-
+total_read_sec: dw 0
 start_cylin :   dw 0
 start_head	:   dw 0
 start_sec	:   dw 0
@@ -233,7 +241,10 @@ A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
 GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 
 size equ $ - entry
-times ((512*35) - size) nop
-;times 512 - ($-$$) db 0x00
-;times 512*34 db 0x4F 
+times ((512*4) - size) nop
+;times (512*128) db 0x44 ; 0x10000 ~ 0x20000 for test for 32-bit
+;times (512*128) db 0x55 ; 0x20000 ~ 0x30000 for test for 32-bit
+;times (512*128) db 0x66 ; 0x30000 ~ 0x40000 for test for 32-bit
+;times (512*128) db 0x77 ; 0x40000 ~ 0x50000 for test for 32-bit
+
 %endif 
