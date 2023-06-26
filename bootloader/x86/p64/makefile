@@ -11,8 +11,8 @@ X86_32_BASE:=../p32
 INC:=-I/home/yohda/workspace/SW/bare-metal/yohdaOS/chap16/02.Kernel64/src/include -I/home/yohda/workspace/SW/bare-metal/yohdaOS/chap16/02.Kernel64/src/block
 OBJ_DIR:=temp
 GCC:=x86_64-elf-gcc
-STRICT:= 
-CFLAG:= -m64 -ffreestanding -g -Wall -Wextra -nostdlib -nostartfiles $(STRICT) $(INC) 
+STRICT:=
+CFLAG:= -m64 -fPIC -ffreestanding -g -Wall -Wextra -nostdlib -nostartfiles $(STRICT) $(INC)  
 LD:=x86_64-elf-ld
 LDFLAG:= -O2 -nostdlib -T link.ld -melf_x86_64
 
@@ -63,11 +63,14 @@ post:
 	mv *.o $(OBJ_DIR)
 	mv *.bin $(OBJ_DIR)
 	mv *.elf $(OBJ_DIR)
+	
 	# create a disk drive image
 	cp $(X86_32_BASE)/temp/kernel.bin $(OBJ_DIR)/kernel32.bin
 	dd if=$(OBJ_DIR)/kernel32.bin of=disk.img
 	truncate -s 264704 disk.img # 262704 = 512 + 2048 + 262144
 	dd if=$(OBJ_DIR)/${BUILD_IMG} >> disk.img
+	truncate -s 268435456 disk.img # Increment disk size to 256MB
+
 	# concate 16-bit & 32-bit & 64-bit image ,in the order, to create the final image 
 	cat $(OBJ_DIR)/kernel32.bin $(OBJ_DIR)/${BUILD_IMG} > $(OBJ_DIR)/$(IMG)
 	chmod 775 $(OBJ_DIR)/$(IMG)
@@ -82,7 +85,7 @@ i440-debug:
 	$(QEMU) $(QEMU_I440FX_FLAG) -fda $(OBJ_DIR)/${IMG} -S -s
 
 gdb:
-	gdb $(OBJ_DIR)/${DBG_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break lbl.asm:45' -ex 'continue' 
+	gdb $(OBJ_DIR)/${DBG_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break lbl.asm:36' -ex 'continue' #-ex 'watch *0xb8070' 
 
 clean:
 	rm -rf $(OBJ_DIR)	

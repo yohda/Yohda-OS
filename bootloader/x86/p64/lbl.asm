@@ -1,7 +1,7 @@
-%ifndef _LBL_NASM_
-%define _LBL_NASM_
+%ifndef _LBL_ASM_
+%define _LBL_ASM_
 
-bits 32
+[bits 32]
 
 PAGE_IA32_EFER_ADDR equ 0xC0000080
 
@@ -11,26 +11,91 @@ align 4096
 page_pml4:
 	times 1024 dd 0
 
+; Load Page Table
 align 4096
-page_low_pdtp:
-	dd 0x00000003
-	dd 0x00000000
-	times 1022 dd 0
+page_temp_pdtp:
+	times 1024 dd 0
 
-page_low_pd:
-	dd 0x00000083
-	dd 0x00000000
-	times 1022 dd 0
+page_temp_pd:
+	times 1024 dd 0
 
-;;;;; high page table
+; High Page Table
+align 4096
+page_high_pdtp:
+	times 1024 dd 0
+
 ;align 4096
-;page_high_pdtp:
-;	dd 0x00000083
-;	dd 0x00000000
-;	times 1022 dd 0 	
-		
+;page_high_pd:
+;	times 1024 dd 0 	
+
 align 4096
-page_pml5:
+page_fhigh_pd: ; 1GB
+	times 1024 dd 0 
+
+;align 4096
+;page_high_pt1:
+;%rep 512
+;%assign i 0
+;%rep 512
+;	dd 0x00000003+i
+;	dd 0x00000000
+;%assign i i+0x1000
+;%endrep
+;%endrep
+
+align 4096
+page_high_pt2:
+%assign i 0
+%rep 512
+	dd 0x00000003+i
+	dd 0x00000000
+%assign i i+0x1000
+%endrep
+
+align 4096
+page_high_pt3:
+%assign i 0
+%rep 512
+	dd 0x00000003+i
+	dd 0x00000000
+%assign i i+0x1000
+%endrep
+
+align 4096
+page_high_pt4:
+%assign i 0
+%rep 512
+	dd 0x00000003+i
+	dd 0x00000000
+%assign i i+0x1000
+%endrep
+
+align 4096
+page_high_pt5:
+%assign i 0
+%rep 512
+	dd 0x00000003+i
+	dd 0x00000000
+%assign i i+0x1000
+%endrep
+
+align 4096
+page_high_pt6:
+%assign i 0
+%rep 512
+	dd 0x00000003+i
+	dd 0x00000000
+%assign i i+0x1000
+%endrep
+
+align 4096
+page_shigh_pd: ; 1GB
+%assign i 0
+%rep 512
+	dd 0x00000083+i
+	dd 0x00000000
+%assign i i+0x200000
+%endrep
 
 section .text.mode64 exec nowrite
 global _start_64:
@@ -46,10 +111,37 @@ _start_64:
 	or eax, 1<<5	; CR4[5] = PAE
 	mov cr4, eax
 
-	; Load Paging Table
-	mov dword [page_pml4], page_low_pdtp + 0x00000003
-	mov dword [page_low_pdtp], page_low_pd + 0x00000003
-	mov dword [page_low_pd], 0x00000083
+	; Load 4MB Low Temporary Identify Mapped Paging Table
+	mov dword [page_pml4], page_temp_pdtp + 0x00000003
+	mov dword [page_temp_pdtp], page_temp_pd + 0x00000003
+	mov dword [page_temp_pd], 0x00000083
+	mov dword [page_temp_pd+8], 0x00200083
+
+	; Load 2GB Higher-Half Identify Mapped Paging Table
+	
+;%assign i 0
+;%assign j 0
+;%rep 512
+;	mov eax, page_high_pt1
+;	add eax, j + 0x00000003
+;	mov dword [page_fhigh_pd + i], eax
+;%assign i i+8
+;%assign j j+4096 
+;%endrep
+
+	mov dword [page_fhigh_pd], page_high_pt2 + 0x00000003
+	mov dword [page_fhigh_pd+8], page_high_pt3 + 0x00000003
+	mov dword [page_fhigh_pd+16], page_high_pt4 + 0x00000003
+	mov dword [page_fhigh_pd+24], page_high_pt5 + 0x00000003
+	mov dword [page_fhigh_pd+32], page_high_pt6 + 0x00000003
+
+	; 510 & 511 PDTPE`s setting.	
+	mov dword [page_high_pdtp+510*2*4], page_fhigh_pd + 0x00000003
+	mov dword [page_high_pdtp+511*2*4], page_shigh_pd + 0x00000003
+	
+	; 511 PML4E`s setting. 
+	mov dword [page_pml4+511*2*4], page_high_pdtp + 0x00000003
+
 	mov eax, page_pml4
 	mov cr3, eax
 
@@ -71,16 +163,11 @@ _start_64:
 	or eax, 1<<31
 	mov cr0, eax
 
-	mov eax, 2
-	mov ebx, 3
-	mov edx, 4
-	;jmp _lmode
-	jmp 0xFFFF800000100000
-	;jmp _lmode
+	jmp 0x18:_trampoline64
 
-section .text
-_lmode:
-	jmp $
-	
- 
+[bits 64]
+extern _lenter
+_trampoline64:
+	jmp _lenter
+
 %endif 
