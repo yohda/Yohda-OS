@@ -1,6 +1,6 @@
-#include "Types.h"
+#include "type.h"
 #include "bstree.h"
-#include "mm.h"
+#include "mm/mm.h"
 #include "debug.h"
 
 int bst_node_init(struct bst_node *_node)

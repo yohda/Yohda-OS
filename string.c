@@ -1,6 +1,19 @@
 #include "string.h"
-#include "mm.h"
+#include "mm/mm.h"
 #include "limit.h"
+
+void reverse(char *str)
+{
+	int len = strlen(str), i = 0, j = 0;
+	char buf[len];
+
+	i = 0;
+	j = len-1;
+	while(i < len)
+		buf[j--] = str[i++];
+			
+	memcpy(str, buf, len);
+}
 
 // https://en.cppreference.com/w/c/string/byte/strtok
 char *strtok(const char *str, const char *delim)

@@ -2,11 +2,11 @@
 #include "list.h"
 #include "string.h"
 #include "stack.h"
-#include "mm.h"
-#include "mmi.h"
+#include "mm/mm.h"
+#include "mm/mmi.h"
 #include "bitmap.h"
-#include "pool.h"
-#include "buddy.h"
+//#include "pool.h"
+//#include "buddy.h"
 
 #ifdef STRING_TEST
 void string_test_strtok()
@@ -592,81 +592,81 @@ void mmi_test()
 	void *p1, *p2, *p3, *p4, *p5, *p6, *p7, *p8, *p9, *p10, *p11, *p12, *p13, *p14, *p15, *p16, *p17, *p18, *p19, *p20;
 	void *s1, *s2, *s3, *s4;
 
-	p1 = yalloc(1921, MM_KL);
+	p1 = yalloc(1921);
 	mm_debug("p1-0x%x\n", p1);
 	
-	s1 = yalloc(921, MM_KL);
+	s1 = yalloc(921);
 	mm_debug("s1-0x%x\n", s1);
  
-	p2 = yalloc(3293, MM_KL);
+	p2 = yalloc(3293);
 	mm_debug("2-0x%x\n", p2);
 
-	s2 = yalloc(23, MM_KL);
+	s2 = yalloc(23);
 	mm_debug("2-0x%x\n", s2);
 
-	p3 = yalloc(18293, MM_KL);
+	p3 = yalloc(18293);
 	//mm_debug("3-0x%x\n", p3);
 
-	p4 = yalloc(1208, MM_KL);
+	p4 = yalloc(1208);
 	mm_debug("4-0x%x\n", p4);
 
-	s3 = yalloc(233, MM_KL);
+	s3 = yalloc(233);
 	mm_debug("4-0x%x\n", s3);
 	
-	p5 = yalloc(13029, MM_KL);
+	p5 = yalloc(13029);
 	mm_debug("5-0x%x\n", p5);
 
 /////////////////////////////////////////////////////////
 
-	p6 = yalloc(7829, MM_KL);
+	p6 = yalloc(7829);
 	mm_debug("6-0x%x\n", p6);
 
-	p7 = yalloc(15273, MM_KL);
+	p7 = yalloc(15273);
 	mm_debug("7-0x%x\n", p7);
 
-	p8 = yalloc(210293, MM_KL);
+	p8 = yalloc(210293);
 	//mm_debug("8-0x%x\n", p8);
 
-	p9 = yalloc(15273, MM_KL);
+	p9 = yalloc(15273);
 	mm_debug("9-0x%x\n", p9);
 
-	p10 = yalloc(NULL, MM_KL);
+	p10 = yalloc(NULL);
 	//mm_debug("10-0x%x\n", p10);
 
 
 ////////////////////////////////////////////////////////////
 
 
-	p11 = yalloc(15273, MM_KL);
+	p11 = yalloc(15273);
 	mm_debug("11-0x%x\n", p11);
 	
-	p12 = yalloc(15273, MM_KL);
+	p12 = yalloc(15273);
 	mm_debug("12-0x%x\n", p12);
 	
-	p13 = yalloc(15273, MM_KL);
+	p13 = yalloc(15273);
 	mm_debug("13-0x%x\n", p13);
 
-	p14 = yalloc(15273, MM_KL);
+	p14 = yalloc(15273);
 	mm_debug("14-0x%x\n", p14);
 
-	p15 = yalloc(15273, MM_KL);
+	p15 = yalloc(15273);
 	mm_debug("15-0x%x\n", p15);
 
 ////////////////////////////////////////////////////
 
-	p16 = yalloc(15273, MM_KL);
+	p16 = yalloc(15273);
 	mm_debug("16-0x%x\n", p16);
 
-	p17 = yalloc(7382, MM_KL);
+	p17 = yalloc(7382);
 	mm_debug("17-0x%x\n", p17);
 
-	p18 = yalloc(1832, MM_KL);
+	p18 = yalloc(1832);
 	mm_debug("18-0x%x\n", p18);
 
-	p19 = yalloc(3920, MM_KL);
+	p19 = yalloc(3920);
 	mm_debug("19-0x%x\n", p19);
 	
-	p20 = yalloc(1832, MM_KL);
+	p20 = yalloc(1832);
 	mm_debug("20-0x%x\n", p20);
 /////////////////////////////////////
 	// Start from here, free pool de-allocation
@@ -739,60 +739,60 @@ void lazy_buddy_test()
 	
 	return ;
 	
-	p5 = yalloc(13029, MM_KL);
+	p5 = yalloc(13029);
 	mm_debug("5-0x%x\n", p5);
 
 /////////////////////////////////////////////////////////
 
-	p6 = yalloc(7829, MM_KL);
+	p6 = yalloc(7829);
 	mm_debug("6-0x%x\n", p6);
 
-	p7 = yalloc(15273, MM_KL);
+	p7 = yalloc(15273);
 	mm_debug("7-0x%x\n", p7);
 
-	p8 = yalloc(210293, MM_KL);
+	p8 = yalloc(210293);
 	//mm_debug("8-0x%x\n", p8);
 
-	p9 = yalloc(15273, MM_KL);
+	p9 = yalloc(15273);
 	mm_debug("9-0x%x\n", p9);
 
-	p10 = yalloc(NULL, MM_KL);
+	p10 = yalloc(NULL);
 	//mm_debug("10-0x%x\n", p10);
 
 
 ////////////////////////////////////////////////////////////
 
 
-	p11 = yalloc(15273, MM_KL);
+	p11 = yalloc(15273);
 	mm_debug("11-0x%x\n", p11);
 	
-	p12 = yalloc(15273, MM_KL);
+	p12 = yalloc(15273);
 	mm_debug("12-0x%x\n", p12);
 	
-	p13 = yalloc(15273, MM_KL);
+	p13 = yalloc(15273);
 	mm_debug("13-0x%x\n", p13);
 
-	p14 = yalloc(15273, MM_KL);
+	p14 = yalloc(15273);
 	mm_debug("14-0x%x\n", p14);
 
-	p15 = yalloc(15273, MM_KL);
+	p15 = yalloc(15273);
 	mm_debug("15-0x%x\n", p15);
 
 ////////////////////////////////////////////////////
 
-	p16 = yalloc(15273, MM_KL);
+	p16 = yalloc(15273);
 	mm_debug("16-0x%x\n", p16);
 
-	p17 = yalloc(7382, MM_KL);
+	p17 = yalloc(7382);
 	mm_debug("17-0x%x\n", p17);
 
-	p18 = yalloc(1832, MM_KL);
+	p18 = yalloc(1832);
 	mm_debug("18-0x%x\n", p18);
 
-	p19 = yalloc(3920, MM_KL);
+	p19 = yalloc(3920);
 	mm_debug("19-0x%x\n", p19);
 	
-	p20 = yalloc(1832, MM_KL);
+	p20 = yalloc(1832);
 	mm_debug("20-0x%x\n", p20);
 /////////////////////////////////////
 	// Start from here, free pool de-allocation

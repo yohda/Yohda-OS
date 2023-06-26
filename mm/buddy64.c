@@ -8,7 +8,6 @@
 #include "mm/pool.h"
 #include "bitmap.h"
 #include "math.h"
-#include "string.h"
 
 /* 64-bit yohdaOS Memory Layout */
 #define MM_BASE				(0x2000000) 				// 32MB
@@ -52,13 +51,13 @@ struct bud_manager {
 
 	// memory info
 	u32 page_size;
-	int org_size;
+	s64 org_size;
 	u32 heap_ul_size;
 	u32 heap_meta_base;
-	int heap_meta_size;
+	s64 heap_meta_size;
 	u32 heap_base;
-	int heap_size;
-	int rmd_size;
+	s64 heap_size;
+	s64 rmd_size;
 };
 
 static struct bitmaps *bud;
@@ -67,7 +66,7 @@ static struct lazy_buddy lazy;
 static struct bud_manager bm;
 
 static void bud_show_info();
-static int bud_init(const void *base, const int size);
+static int bud_init(const void *base, const s64 size);
 static int bud_lazy_free(const void *addr);
 static void _bud_free(const void *addr);
 static void bud_free(const void* addr);
@@ -117,7 +116,7 @@ static int bud_get_chunk(const int _dep)
 	return chunk;
 }
 
-static int bud_get_dep(const int heap_size, const int _ll)
+static int bud_get_dep(const s64 heap_size, const int _ll)
 {
 	int i;
 	int ll;
@@ -513,10 +512,10 @@ static void _bud_free(const void *addr)
 	}
 }
 
-static int bud_get_real_size(const int _size, const int _ll)
+static s64 bud_get_real_size(const s64 _size, const int _ll)
 {
 	int ll = 0, i = 0, dep = 0;
-	int size = 0;
+	s64 size = 0;
 
 	if(_ll<1 || _size<1)
 		return err_dbg(-1, "err\n");
@@ -546,11 +545,11 @@ static int bud_get_real_size(const int _size, const int _ll)
 	return size; 
 }
 
-static int _bud_init(const void* base, const int heap_size, const int llc)
+static int _bud_init(const void* base, const s64 heap_size, const int llc)
 {
 	int i, j, rmd = 0;
 	u8 *bmp_base = NULL;
-	int size = 0, data_size = 0; 
+	s64 size = 0, data_size = 0; 
 	u32 ll = 0;
 	
 	if(!base)
@@ -643,7 +642,7 @@ static int _bud_init(const void* base, const int heap_size, const int llc)
 	return bm.rmd_size;
 }
 
-int bud_init(const void *base, const int heap_size)
+int bud_init(const void *base, const s64 heap_size)
 {
 	_bud_init(base, heap_size, 2048);
 }

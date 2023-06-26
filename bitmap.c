@@ -2,6 +2,7 @@
 #include "mm/mmi.h"
 #include "debug.h"
 #include "error.h"
+#include "string.h"
 
 #define BYTE_UNIT 		8
 

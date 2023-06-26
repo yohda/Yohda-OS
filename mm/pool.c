@@ -7,6 +7,7 @@
 #include "bitmap.h"
 #include "error.h"
 #include "math.h"
+#include "string.h"
 
 #define POOL_HEADER_SIZE 		(sizeof(struct pool_header))	
 

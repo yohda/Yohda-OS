@@ -29,7 +29,7 @@ struct memory_layout {
 
 struct mm {
 	void *base;	// primary memory management base address
-	s64 size;
+	int size;
 	int llc;
 	int ulc;
 };
@@ -39,11 +39,11 @@ void* mm_alloc(u32 size, u32 flag);
 void mm_free(void *addr);
 
 int mm_where_is_addr(const void *addr);
-s64 mm_get_pri_size(void);
-int mm_set_pri_size(const s64 size);
+int mm_get_pri_size(void);
+int mm_set_pri_size(const int size);
 int mm_set_pri_base(const void *base);
-s64 mm_get_sec_size(void);
-int mm_set_sec_size(const s64 size);
+int mm_get_sec_size(void);
+int mm_set_sec_size(const int size);
 int mm_set_sec_base(const void *base);
 int mm_get_pri_ulc(void);
 int mm_get_pri_llc(void);

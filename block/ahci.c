@@ -1,9 +1,9 @@
 #include "block/ahci.h"
-//#include "Utility.h"
 #include "error.h"
 #include "bus/pci.h"
 #include "fs/fat.h"
 #include "debug.h"
+#include "string.h"
 
 #define	SATA_SIG_ATA		0x00000101	// SATA drive
 #define	SATA_SIG_ATAPI		0xEB140101	// SATAPI drive
@@ -180,7 +180,7 @@ int ahci_init(void)
 					//ahci_debug("read_buf[9] - 0x%x\n", *(read_buf+9));
 					
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
-					fat_init(read_buf);	
+					//fat_init(read_buf);	
 /*
 					_ahci_read(&abar->port[i], 0, 1, read_buf);
 						
@@ -646,6 +646,8 @@ int find_ahci_device(struct ahci_hba_mem_reg **_abar) {
     int bus;
     int slot;
     unsigned short vendor,device;
+
+	pci_find_dev(PCI_VENDOR_INTEL, PCI_DEVICE_INTEL_AHCI);
 
     for(bus = 0; bus < 256; bus++) {
         for(slot = 0; slot < 32; slot++) {

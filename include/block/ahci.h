@@ -8,6 +8,9 @@
 #define AHCI_MAX_CMD_HEADER_NUM 	32
 #define AHCI_HBA_MAX_PRDT_NUM 		8
 
+#define PCI_VENDOR_INTEL 	(0x8086)
+#define PCI_DEVICE_AHCI 	(0x2922)
+
 typedef enum
 {
 	FIS_TYPE_REG_H2D	= 0x27,	// Register FIS - host to device

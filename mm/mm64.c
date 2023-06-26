@@ -36,11 +36,11 @@
 
 struct mm_mgr {
 	// memory info
-	int org_size; 	// In initialization, size given to heap.
-	int heap_size;	// Real heap size.
-	int used_size;	// used size in real heap size
-	int free_size;  // free size in real heap size
-	int rmd_size;	// original size - heap size
+	s64 org_size; 	// In initialization, size given to heap.
+	s64 heap_size;	// Real heap size.
+	s64 used_size;	// used size in real heap size
+	s64 free_size;  // free size in real heap size
+	s64 rmd_size;	// original size - heap size
 
 	struct mm pri;
 	struct mm sec;
@@ -127,12 +127,12 @@ int mm_where_is_addr(const void *addr)
 	return MM_PRI;
 }	
 
-int mm_get_pri_size(void)
+s64 mm_get_pri_size(void)
 {
 	return mmm.pri.size;
 }
 
-int mm_set_pri_size(const int size)
+int mm_set_pri_size(const s64 size)
 {
 	if(size < 1)
 		return err_dbg(-1, "err\n");
@@ -148,12 +148,12 @@ int mm_set_pri_base(const void *base)
 	mmm.pri.base = base;
 }
 
-int mm_get_sec_size(void)
+s64 mm_get_sec_size(void)
 {
 	return mmm.sec.size;
 }
 
-int mm_set_sec_size(const int size)
+int mm_set_sec_size(const s64 size)
 {
 	if(size < 1)
 		return err_dbg(-1, "err\n");
@@ -191,9 +191,9 @@ int mm_get_sec_llc(void)
 
 // RAM 사이즈에 대한 디텍은 BIOS 나 UEFI를 통해서 하는게 가장 좋다고 한다.
 // 이게 Memory Controller를 통해서 RAM 사이즈를 얻는 경우가 가장 좋다는거 같은데, BIOS 나 UEFI가 칩 벤더 레벨에서 알아서 이 정보를 가져와 주기 때문인 거 같다.
-int mm_init(const int heap_size)
+int mm_init(const s64 heap_size)
 {
-	int real_size = 0, rmd = 0;
+	s64 real_size = 0, rmd = 0;
 	int err = -1;
 
 	if(heap_size < MM_HEAP_MIN_SIZE)
