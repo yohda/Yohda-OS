@@ -1,0 +1,135 @@
+diff --git a/bootloader/x86/p64/lbl.asm b/bootloader/x86/p64/lbl.asm
+index a15dbe1..04068c2 100644
+--- a/bootloader/x86/p64/lbl.asm
++++ b/bootloader/x86/p64/lbl.asm
+@@ -1,7 +1,7 @@
+ %ifndef _LBL_NASM_
+ %define _LBL_NASM_
+ 
+-bits 32
++[bits 32]
+ 
+ PAGE_IA32_EFER_ADDR equ 0xC0000080
+ 
+@@ -11,26 +11,22 @@ align 4096
+ page_pml4:
+ 	times 1024 dd 0
+ 
++; Load Page Table
+ align 4096
+ page_low_pdtp:
+-	dd 0x00000003
+-	dd 0x00000000
+-	times 1022 dd 0
++	times 1024 dd 0
+ 
+ page_low_pd:
+-	dd 0x00000083
+-	dd 0x00000000
+-	times 1022 dd 0
+-
+-;;;;; high page table
+-;align 4096
+-;page_high_pdtp:
+-;	dd 0x00000083
+-;	dd 0x00000000
+-;	times 1022 dd 0 	
+-		
++	times 1024 dd 0
++
++; High Page Table
++align 4096
++page_high_pdtp:
++	times 1024 dd 0 	
++
+ align 4096
+-page_pml5:
++page_high_pd:
++	times 1024 dd 0 	
+ 
+ section .text.mode64 exec nowrite
+ global _start_64:
+@@ -46,10 +42,17 @@ _start_64:
+ 	or eax, 1<<5	; CR4[5] = PAE
+ 	mov cr4, eax
+ 
+-	; Load Paging Table
++	; Load 4MB Low Temporary Identify Mapped Paging Table
+ 	mov dword [page_pml4], page_low_pdtp + 0x00000003
+ 	mov dword [page_low_pdtp], page_low_pd + 0x00000003
+ 	mov dword [page_low_pd], 0x00000083
++	mov dword [page_low_pd+8], 0x00000083
++
++	; Load 2GB Higher-Half Identify Mapped Paging Table
++	mov dword [page_pml4+511*2*4], page_high_pdtp + 0x00000003
++	mov dword [page_high_pdtp+510*2*4], page_high_pd + 0x00000003
++	mov dword [page_high_pd], 0x00000083
++	mov dword [page_high_pd+8], 0x00000083
+ 	mov eax, page_pml4
+ 	mov cr3, eax
+ 
+@@ -71,16 +74,19 @@ _start_64:
+ 	or eax, 1<<31
+ 	mov cr0, eax
+ 
+-	mov eax, 2
+-	mov ebx, 3
+-	mov edx, 4
+-	;jmp _lmode
+-	jmp 0xFFFF800000100000
+-	;jmp _lmode
++	jmp 0x18:_trampoline64
++
++[bits 64]
++_trampoline64:
++	jmp _lenter
+ 
+ section .text
+-_lmode:
++_lenter:
++	mov rax, 1
++	mov rbx, 2
++	mov rcx, 3
++	mov rdx, 4
++
+ 	jmp $
+-	
+  
+ %endif 
+diff --git a/bootloader/x86/p64/link.ld b/bootloader/x86/p64/link.ld
+index 35464dd..9ad0e96 100644
+--- a/bootloader/x86/p64/link.ld
++++ b/bootloader/x86/p64/link.ld
+@@ -1,4 +1,4 @@
+-HH_BASE = 0xFFFF800000000000;
++HH_BASE = 0xFFFFFFFF80000000;
+ 
+ ENTRY(_start_64)
+ SECTIONS
+@@ -15,15 +15,15 @@ SECTIONS
+ 		*(.data.page64)		
+ 	}
+ 
+-	/* it`s needed to plus end address of `.text.mode64` to 0xFFFF_8000_0000_0000. 
++	/* it`s needed to plus end address of `.text.mode64` to 0xFFFFFFFF80000000. 
+ 	 * Becuase, if don`t plus, it`s happended that there is duplicating he first 0x1XXXXX regions.
+ 	 * 
+ 	 * */
+ 	emode64 = .;
+-	. = 0xFFFF800000000000 + emode64; 
++	. = HH_BASE + emode64; 
+ 	
+-	kern_virt_start_addr = .;
+-	kern_phy_start_addr = kern_virt_start_addr - HH_BASE;	
++	/*kern_virt_start_addr = .;*/
++	/*kern_phy_start_addr = kern_virt_start_addr - HH_BASE;	*/
+ 	
+ 	.text ALIGN(0x1000): AT(ADDR(.text) - HH_BASE)
+ 	{
+@@ -47,5 +47,5 @@ SECTIONS
+     }
+ 
+ 	kern_virt_end_addr = .;
+-	kern_phy_end_addr = kern_virt_end_addr - HH_BASE;
++	/*kern_phy_end_addr = kern_virt_end_addr - HH_BASE;*/
+ }

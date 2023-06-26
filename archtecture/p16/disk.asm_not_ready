@@ -1,0 +1,86 @@
+%ifndef _DISK_ASM_
+%define _DISK_ASM_
+
+; BIOS INT
+BIOS_READ_SECS		equ 0x02
+BIOS_READ_DISK_INFO	equ 0x08
+
+SECTION .data
+secs	:	dw 0
+heads	: 	dw 0
+cylins	: 	dw 0
+
+SECTION .text
+global disk_get_infos
+global dis_read
+
+disk_get_infos:
+	pushad
+	
+	mov ah, BIOS_READ_DISK_INFO	; BIOS INT 13h F8h:Read Drive Parameteres
+	int 0x13	
+	jc _error					; if carry set, error
+
+	mov [secs], cx				; get sectors per a track
+	and word [secs], 0x003F		; cx[5:0] - sectors per track 	
+
+	mov byte [heads], dh		; get heads
+	inc word [heads]			; increment due to starting index - 1
+
+	mov word [cylins], cx
+	and word [cylins], 0xFFC0	; calculation the number of cylinders
+		
+	popad
+
+; first argument - destination memory address
+; second argument - start sector
+; third argument - count to read sectors
+disk_read:
+	push bp
+	mov bp, sp
+	pushad
+
+	sub sp, 8 ; [bp-2] = secs, [bp-4] = heads, [b-6] = cylinders
+
+	xor ax, ax
+	mov ax, [bp+6]
+	div secs
+
+	mov byte [bp-2], ah ; start sectors 
+	
+	mov byte [bp-4], al ; heads
+
+	 
+	mov [bp-8], [bp+4]
+	mov ax, 
+	.calc_start_sec:
+	
+		sub [bp-2], [secs] 
+		
+	
+	[bp-2]
+	
+	
+	mov ax, 0x07E0
+	mov es, ax
+	xor bx, bx
+	
+	mov ah, BIOS_READ_SECS	; BIOS INT 13h F2h:Read Sectors from drive
+	dec word [secs]		; because start sector number 2
+	mov	al, [secs]	
+	mov ch, 0		; start to cylinder
+	mov cl,	2		; start to sector
+	mov dh, 0 		; start to head
+
+	int 0x13		; request BIOS INT13h F2h
+	jc _error		; if carry set, error
+
+	popad
+	pop bp
+
+	ret
+
+_error:
+	jmp $
+
+%endif

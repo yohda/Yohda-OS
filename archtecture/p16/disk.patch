@@ -1,0 +1,282 @@
+diff --git a/bootloader/x86/p16/fbl.asm b/bootloader/x86/p16/fbl.asm
+index 52e84e0..05950c6 100644
+--- a/bootloader/x86/p16/fbl.asm
++++ b/bootloader/x86/p16/fbl.asm
+@@ -83,41 +83,59 @@ _part_read:
+ 	pop es	
+ 
+ _disk_get_infos:
+-	pushad
++	pusha
+ 	
+ 	mov ah, BIOS_READ_DISK_INFO	; BIOS INT 13h F8h:Read Drive Parameteres
+ 	int 0x13	
+ 	jc _error					; if carry set, error
+ 
+-	mov [secs], cx				; calculate sectors per a track
+-	and word [secs], 0x003F		; cx[5:0] - sectors per track 	
+-	
+-	popad
++	mov [secs], cx				; cx[5:0] - sectors per track
++	and word [secs], 0x003F		; calculate sectors per a track	
++
++	mov [cylins], cx			; cx[15:6] - number of cylinders
++	and word [cylins], 0xFFC0	; calculate cylinders
++	shr word [cylins], 6
++	inc word [cylins]			; index of cylinders start = number - 1
++		
++	mov byte [heads], dh 		; dh - number of head 
++	inc word [heads] 			; index of head starts = number - 1
++
++	popa
+ 
+ _disk_read:
+-	pushad
++	pusha
+ 	
+ 	mov ax, 0x07E0
+ 	mov es, ax
+ 	xor bx, bx
+-	
++
++	mov al, [secs]	
++	dec al
+ 	mov ah, BIOS_READ_SECS	; BIOS INT 13h F2h:Read Sectors from drive
+-	dec word [secs]		; because start sector number 2
+-	mov	al, [secs]	
+-	mov ch, 0		; start to cylinder
+-	mov cl,	2		; start to sector
+-	mov dh, 0 		; start to head
++	mov ch, 0				; start to cylinder
++	mov cl,	2				; start to sector
++	mov dh, 0 				; start to head
++
++	mov word [sbl_start_sec], 1
++	mov word [sbl_start_head], 1
++	mov word [sbl_start_cylin], 0
+ 
+-	int 0x13		; request BIOS INT13h F2h
+-	jc _error		; if carry set, error
++	int 0x13				; request BIOS INT13h F2h
++	jc _error				; if carry set, error
+ 
+-	popad
++	popa
+ 	
+ _sbl:
+ 	push SEC_BOOT_MSG               
+     call vga_text_print         
+ 
+-	push word [vga_rows] 	; pass command line number for sbl
++	push word [vga_rows] 		; pass command line number for sbl
++	push word [secs]			; pass sectors per track
++	push word [heads]			; pass heads
++	push word [cylins]			; pass cylinders
++	push word [sbl_start_sec] 	; pass start sector
++	push word [sbl_start_head]  ; pass start head
++	push word [sbl_start_cylin] ; pass satrt cylinder
+ 
+ 	jmp 0x0000:_sbl_start 
+ 	
+@@ -169,7 +187,12 @@ _error:
+ 	jmp $ 
+ 
+ ; disk
+-secs: 	dw 0
++secs			: dw 0
++heads			: dw 0
++cylins			: dw 0
++sbl_start_sec 	: dw 0
++sbl_start_head 	: dw 0
++sbl_start_cylin : dw 0
+ 
+ ; print
+ vga_rows	: 	dw 0
+diff --git a/bootloader/x86/p16/link.ld b/bootloader/x86/p16/link.ld
+index 927e8ed..346d2ec 100644
+--- a/bootloader/x86/p16/link.ld
++++ b/bootloader/x86/p16/link.ld
+@@ -2,9 +2,9 @@ SECTIONS
+ {
+ 	.text 0x7C00 :
+ 	{
+-		fbl.o (.text) 
++		fbl.o (.text)
+ 		sbl.o (.text)
+-		/**(.text)*/
++		*(.text)
+ 		*(.rodata)
+ 	}
+ 
+diff --git a/bootloader/x86/p16/makefile b/bootloader/x86/p16/makefile
+index 594b575..eae3b78 100644
+--- a/bootloader/x86/p16/makefile
++++ b/bootloader/x86/p16/makefile
+@@ -52,7 +52,7 @@ host-debug:
+ 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
+ 
+ g16:
+-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break fbl.asm:104' -ex 'continue'
++	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:_gdt_sec' -ex 'continue'
+ 
+ g32:
+ 	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break pbl.asm:_pbl_start' -ex 'continue'
+diff --git a/bootloader/x86/p16/sbl.asm b/bootloader/x86/p16/sbl.asm
+index f70468c..d727caa 100644
+--- a/bootloader/x86/p16/sbl.asm
++++ b/bootloader/x86/p16/sbl.asm
+@@ -9,11 +9,12 @@ entry:
+ extern _pbl_start
+ %endif
+ 
+-; VGA 
+-VGA_TEST_BASE equ 0xB800
+-VGA_LINE_BYTES equ 160
++DISK_SEG_LIMIT  equ 0xFFFF
++BIOS_READ_SECS	equ 0x02
+ 
+-SBL_ALLOC_SECS equ 32
++; VGA 
++VGA_TEST_BASE 	equ 0xB800
++VGA_LINE_BYTES	equ 160
+ 
+ SECTION .text
+ jmp 0x0000:_sbl_start
+@@ -21,10 +22,13 @@ jmp 0x0000:_sbl_start
+ global _sbl_start
+ 
+ _sbl_start:
+-	pop ax
+-	pop bx
+-
+-	mov word [vga_rows], ax
++	pop word [start_cylin]
++	pop word [start_head]
++	pop word [start_sec]
++	pop word [cylins]
++	pop word [heads]
++	pop word [secs]
++	pop word [vga_rows]
+ 
+ 	push MSG_SEC_BOOT
+ 	call vga_text_print
+@@ -45,13 +49,67 @@ _a20_sec:
+ 	pop es
+ 	
+ 	cmp bx, cx
+-	jne _gdt_sec 
++	jne _load_kernel 
+ 
+ .a20_enable:
+ 	push A20_MSG               
+     call vga_text_print         
+     add sp, 2
+ 
++_load_kernel:
++	pusha
++	
++	mov ax, 0xFFFF
++	mov es, ax
++	mov bx, 0x10
++
++	_disk_loop:
++		; migration address
++		mov ax, 512
++		mul word [secs]
++		mov cx, bx
++		add bx, ax
++		jc _disk_loop_exit
++		
++		mov bx, cx
++
++		; read the sectors 
++		mov al, [secs]					; sector count to read
++		mov ah, BIOS_READ_SECS			; BIOS INT 13h F2h:Read Sectors from drive
++		mov ch, byte [start_cylin]		; start to cylinder
++		mov cl,	byte [start_sec]		; start to sector
++		mov dh, byte [start_head]		; start to head
++
++		int 0x13						; request BIOS INT13h F2h
++		jc _error						; if carry set, error
++		
++		cmp al, [secs]					; if successed, return the read sectors count to al
++		jne _error	
++
++		; increment offset(bx)
++		mov ax, 512
++		mul word [secs]
++		add bx, ax
++
++		; calculate next head count	
++		mov ax, [heads]
++		inc word [start_head]
++		cmp [start_head], ax
++		jl _disk_loop
++
++		mov word [start_head], 0
++	
++		; calculate next cylinder count
++		mov ax, [cylins]
++		inc word [start_cylin]				
++		cmp [start_cylin], ax 
++		jl _disk_loop
++
++		jmp _error
++
++	_disk_loop_exit:
++	popa
++
+ _gdt_sec:
+ 	push GDT_MSG               
+     call vga_text_print         
+@@ -73,15 +131,12 @@ _pmode:
+ 	or al, 1
+ 	mov cr0, eax	
+ 	
+-[BITS 32]
+ %ifdef DEBUG
+ 	jmp $
+ %else
+ 	jmp 0x08:_pbl_start
+ %endif
+ 	
+-[BITS 16]
+-
+ vga_text_print:
+ 	push bp
+ 	mov bp, sp
+@@ -126,6 +181,9 @@ vga_text_print:
+ 
+ 	ret
+ 
++_error:
++	jmp $
++
+ _gdt_tbl:
+ 	; NULL Segment
+ 	dw 0x0000
+@@ -153,13 +211,23 @@ _gdtr:
+ 	dw 0 
+ 	dd 0
+ 
++
++start_cylin :   dw 0
++start_head	:   dw 0
++start_sec	:   dw 0
++cylins 		:   dw 0
++heads 		:	dw 0
++secs		: 	dw 0
+ vga_rows	: 	dw 0
+ MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
+ A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
+ GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
+ 
+ size equ $ - entry
+-times (1024 - size) db 0x00
++times ((512*35) - size) nop
++times 512*36 db 0x11
++times 512*36 db 0x22
++times 512*36 db 0x33
+ ;times 512 - ($-$$) db 0x00
+ ;times 512*34 db 0x4F 
+ %endif 
