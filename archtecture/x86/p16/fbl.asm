@@ -22,6 +22,8 @@ jmp 0x0000:_fbl_start
 _fbl_start:
 	cli						; Disable interrupt	
 
+	mov byte [drive_number], dl	; set drive number
+
     xor ax, ax			
     mov ds, ax				; set DS to zero
     mov ax, VGA_TEST_BASE 	 
@@ -42,9 +44,6 @@ _vga_test_init:
     cmp si, VGA_LINE_BYTES*25     
                             
     jne _vga_test_init      
-	 
-    push BOOT_MSG               
-    call vga_text_print         
 
 _part_check:
 	push es
@@ -71,9 +70,6 @@ _part_check:
 		jmp _disk_get_infos
 
 _part_read:
-	push ACT_PART_MSG                
-    call vga_text_print         
-	
 	push es
 	push di
 
@@ -106,20 +102,46 @@ _disk_get_infos:
 	
 	popa
 
+	;jmp _disk_read
+
+_disk_get_ext_infos:
+	pusha
+
+	mov ah, 0x41	; BIOS INT=13h AH=41h - Check if extedned function is supported.
+	mov dl, byte [drive_number]	
+	mov bx, 0x55aa
+
+	int 0x13
+	jc _disk_read 	; If carry flag is set, extended function is not supported.
+	
+	mov ah, 0x48	; BIOS INT13h AH=48h - extended read drive parameters
+	mov dl, byte [drive_number]	
+
+	xor si, si
+	mov cx, 0x0900
+	mov ds, cx
+	
+	int 0x13
+	jc _disk_read
+	
+		
+	popa
+
 _disk_read:
 	pusha
 	
+	xor bx, bx
+	mov ds, bx
 	mov ax, 0x07E0
 	mov es, ax
-	xor bx, bx
 
 	mov al, 4	
-	dec al
 	mov ah, BIOS_READ_SECS	; BIOS INT 13h F2h:Read Sectors from drive
 	mov ch, 0				; start to cylinder
 	mov cl,	2				; start to sector
 	mov dh, 0 				; start to head
-
+	mov dl, byte [drive_number]	; floppy0 = 0x00, hdd0 = 0x80
+	
 	mov word [sbl_start_sec], 6 
 	mov word [sbl_start_head], 0
 	mov word [sbl_start_cylin], 0
@@ -130,9 +152,7 @@ _disk_read:
 	popa
 	
 _sbl:
-	push SEC_BOOT_MSG               
-    call vga_text_print         
-
+	push word [drive_number]	; pass drive number 
 	push word [vga_rows] 		; pass command line number for sbl
 	push word [secs]			; pass sectors per track
 	push word [heads]			; pass heads
@@ -190,10 +210,12 @@ vga_text_print:
 _disk_not_supported:
 	push DISK_ERR_MSG               
     call vga_text_print
+
 _error:
 	jmp $ 
 
 ; disk
+drive_number 	: dw 0
 secs			: dw 0
 heads			: dw 0
 cylins			: dw 0
@@ -203,10 +225,7 @@ sbl_start_cylin : dw 0
 
 ; print
 vga_rows	: 	dw 0
-SEC_BOOT_MSG:	db 'Ready for jumping secondary bootloader', 0 	
-BOOT_MSG:    	db 'YohdaOS First Boot Loader Start', 0 
-ACT_PART_MSG:	db 'There exist a active partition', 0
-DISK_ERR_MSG:	db 'This disk is not supported', 0
+DISK_ERR_MSG:	db 'err0', 0
 
 times (446 - ($-$$)) db 0
 times 16 db 0

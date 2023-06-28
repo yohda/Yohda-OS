@@ -13,8 +13,8 @@ QE32_Q35_FLAG:=-m 4096 -M q35 -d int -no-reboot -no-shutdown -D ./log.txt
 QE32_HOST_FLAG:=-m 4096 -M virt -d int -no-reboot -no-shutdown -cpu host -enable-kvm
 
 YASM:=nasm
-ifdef D # for only real mode
-YAFLAG:=-f elf -g3 -F dwarf -DDEBUG
+ifdef P32 # for only real mode
+YAFLAG:=-f elf -g3 -F dwarf -DP32
 else
 YAFLAG:=-f elf -g3 -F dwarf
 endif
@@ -34,6 +34,13 @@ bl.elf: $(OBJS)
 q35:
 	$(QE32) $(QE32_FLAG) -fda $(OBJ_DIR)/bl.bin -boot c
 
+qf:
+	$(QE32) $(QE32_FLAG) -fda $(OBJ_DIR)/bl.bin -boot c
+qc:
+	$(QE32) $(QE32_FLAG) -drive file=$(OBJ_DIR)/bl.bin,media=cdrom -boot d #-fda $(OBJ_DIR)/bl.bin -boot c
+qh:
+	$(QE32) $(QE32_FLAG) -hda $(OBJ_DIR)/bl.img
+
 host:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin	
 
@@ -41,15 +48,19 @@ post:
 	mv *.o $(OBJ_DIR)
 	mv *.bin $(OBJ_DIR)
 	mv *.elf $(OBJ_DIR)
+	cp $(OBJ_DIR)/bl.bin $(OBJ_DIR)/bl.img 
 
 q35-debug:
 	$(QE32) $(QE32_Q35_FLAG) -fda $(OBJ_DIR)/bl.bin -boot c -S -s		
 
+qh-debug:
+	$(QE32) $(QE32_FLAG) -hda $(OBJ_DIR)/bl.img -s -S
+
 host-debug:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
 
-g16:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:_gdt_sec' -ex 'continue'
+gdb:
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:155' -ex 'continue'
 
 clean:
 	rm -rf $(OBJ_DIR)	

@@ -1,0 +1,25 @@
+romimage: file=$BXSHARE/BIOS-bochs-latest
+vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
+# memory: guest=512, host=512
+# pci: enabled=1, chipset=i440fx, slot1=pcivga
+# ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+
+# We give our system 32 Mb of RAM.
+megs: 32
+
+# This is the additional package we installed. We add it into our configuration.
+display_library: sdl
+
+# This emulates a physical device and loads our bootable IMG file into that device.
+#floppya: 1_44=./temp/bl.bin, status=inserted    
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master: type=disk, path=./temp/bl.img, mode=flat, cylinders=1, heads=11, spt=47, translation=none
+# ROM BIOS should search the bootable disk in this below order. 
+boot: disk, floppy, cdrom
+
+# Logfile
+log: bochsout.txt
+
+# We don't need mouse emulation
+mouse: enabled=0
+

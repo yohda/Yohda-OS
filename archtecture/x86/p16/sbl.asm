@@ -8,7 +8,7 @@ extern main
 entry:
 
 ; 32-bt Kernel meta data
-
+PMODE_ENTRY_POINT equ 0x10000
 DISK_SEG_LIMIT  equ 0xFFFF
 BIOS_READ_SECS	equ 0x02
 
@@ -29,7 +29,8 @@ _sbl_start:
 	pop word [heads]
 	pop word [secs]
 	pop word [vga_rows]
-
+	pop word [drive_number]
+	
 	push MSG_SEC_BOOT
 	call vga_text_print
 	add sp, 2
@@ -40,17 +41,19 @@ _a20_sec:
 	
 	mov ax, 0x0000 
 	mov es, ax
-	mov bx, [es:0x7DFE]
+	mov bx, [es:0x7DFE] ; In MBR, 0x7DFE = 0x55, 0x7DFF = 0xAA
 
-	not ax
-	mov es, ax
-	mov cx, [es:0x7E0E]
+	not ax				; ax = 0xFFFF
+	mov es, ax			; es = 0xFFFF0
+	mov cx, [es:0x7E0E] ; cx 0xFFFF:0x7E0E => 0x107DFE
 
 	pop es
 	
 	cmp bx, cx
 	jne _load_kernel 
 
+
+; If reaching at this line, A20 is disabled and you must enable this. 
 .a20_enable:
 	push A20_MSG               
     call vga_text_print         
@@ -72,7 +75,7 @@ _load_kernel:
 		mov ch, byte [start_cylin]		; start to cylinder
 		mov cl,	byte [start_sec]		; start to sector
 		mov dh, byte [start_head]		; start to head
-		mov dl, 0						; set disk drive to 0
+		mov dl, byte [drive_number]		; set disk drive to 0
 
 		int 0x13						; request BIOS INT13h F2h
 		jc _error						; If carry set, error
@@ -151,7 +154,7 @@ _pmode:
 [BITS 32]
 _penter:
 	push word [total_read_sec]
-	jmp 0x10000;					; boot loader entry point of protected mode	
+	jmp PMODE_ENTRY_POINT	; boot loader entry point of protected mode	
 
 [BITS 16]	
 vga_text_print:
@@ -252,15 +255,19 @@ cylins 		:   dw 0
 heads 		:	dw 0
 secs		: 	dw 0
 vga_rows	: 	dw 0
+drive_number: 	dw 0
+
 MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
 A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
 GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 
 size equ $ - entry
 times ((512*4) - size) nop
-;times (512*128) db 0x44 ; 0x10000 ~ 0x20000 for test for 32-bit
-;times (512*128) db 0x55 ; 0x20000 ~ 0x30000 for test for 32-bit
-;times (512*128) db 0x66 ; 0x30000 ~ 0x40000 for test for 32-bit
-;times (512*128) db 0x77 ; 0x40000 ~ 0x50000 for test for 32-bit
+%ifndef P32
+times (512*128) db 0x44 ; 0x10000 ~ 0x20000 for test for 32-bit
+times (512*128) db 0x55 ; 0x20000 ~ 0x30000 for test for 32-bit
+times (512*128) db 0x66 ; 0x30000 ~ 0x40000 for test for 32-bit
+times (512*128) db 0x77 ; 0x40000 ~ 0x50000 for test for 32-bit
+%endif
 
 %endif 
