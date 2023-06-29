@@ -21,7 +21,11 @@ jmp 0x0000:_sbl_start
 
 global _sbl_start
 
+; Okay, here is now secondary boot having two something to do.
+; First, Change the operating mode from real mode to unreal mode. after that, from unreal mode to Protected mode.
+; Second, Load the 32bit kernel into above 1MB.
 _sbl_start:
+	sti
 	pop word [start_cylin]
 	pop word [start_head]
 	pop word [start_sec]
@@ -30,6 +34,35 @@ _sbl_start:
 	pop word [secs]
 	pop word [vga_rows]
 	pop word [drive_number]
+	pop word [total_read_sec]
+
+	; inti des
+		;xor ax, ax
+		;mov es, ax
+		;mov di, 0x5000
+		; init src 
+		;mov si, 0x7C00
+		;mov ds, ax
+		;mov ecx, 0x40000
+		;rep movsb 
+		;movsd
+		;movsd
+		;movsd
+		;movsd
+		;movs si, di
+
+
+	mov word [0x34], __isr_gp ; #GP
+	mov word [0x36], 0x00
+
+;#define PIC1_CMD                    0x20
+;#define PIC_READ_IRR                0x0a    
+
+	mov dx, 0x20
+	mov al, 0x0a
+	out dx, al
+
+	in al, dx
 	
 	push MSG_SEC_BOOT
 	call vga_text_print
@@ -52,21 +85,25 @@ _a20_sec:
 	cmp bx, cx
 	jne _load_kernel 
 
-
-; If reaching at this line, A20 is disabled and you must enable this. 
+; When reached at this line, A20 is disabled and you must enable this before entering the protected mode. 
 .a20_enable:
 	push A20_MSG               
     call vga_text_print         
     add sp, 2
 
+; Fron now on, Load the 32bit kernel into 1MB. 
 _load_kernel:
 	pusha
 	
-	mov ax, 0x1000 						; kernel base address of protected mode
+	mov ax, 0x1000  					; 32bit kernel base address = 0x100000 
 	mov es, ax
 	xor bx, bx
 
-	mov word [total_read_sec], 1 + 4 			; 1 - Size of PBL , 4 - Size of SBL
+	;xor ax, ax
+	;mov es, ax
+	;mov ebx, 0x10000
+
+	mov word [total_read_sec], 1 + 4 	; 1 - Size of PBL , 4 - Size of SBL
 	
 	_disk_loop:
 		; read the sectors 
@@ -88,7 +125,7 @@ _load_kernel:
 
 		; migration address
 		mov ax, 512
-		add bx, ax
+		add bx, ax		
 		jnc _disk_update_chs
 	
 		; a carry happends		
@@ -128,6 +165,7 @@ _load_kernel:
 	_disk_loop_exit:
 	popa
 
+; From here, preapre for GDT used in protected mode
 _gdt_sec:
 	push GDT_MSG               
     call vga_text_print         
@@ -144,19 +182,50 @@ _gdt_sec:
 	mov [_gdtr], ax
 	lgdt [_gdtr]
 
-_pmode:	
+; From here, start to get into unreal mode.
+_pre_unreal:	
 	mov eax, cr0
 	or al, 1
 	mov cr0, eax	
-	
-	jmp 0x08:_penter
 
-[BITS 32]
+_do_unreal:
+	mov ax, GDT_DATA		
+	mov ds, ax				; Load 32bit Date Segment Discriptor
+	mov es, ax
+	
+	and al, 0xFE		
+	mov cr0, eax			; Disable Protected Mode 
+
+_unreal_mode:
+	xor ax, ax 
+	mov ds, ax
+	mov es, ax
+
+	; inti des
+	xor eax, eax
+	mov es, eax
+	mov edi, 0x100000
+	; init src 
+	mov si, 0
+	mov ax, 0x1000
+	mov ds, ax
+	mov ecx, 0x4000
+	;movsb
+	rep movsb 
+	;movsd
+	;movs si, di
+
+_pmode:
+	jmp $
+
 _penter:
+
+	; below codes for protected mode
 	push word [total_read_sec]
 	jmp PMODE_ENTRY_POINT	; boot loader entry point of protected mode	
 
-[BITS 16]	
+
+;;; function sections
 vga_text_print:
 	push bp
 	mov bp, sp
@@ -204,14 +273,20 @@ vga_text_print:
 _error:
 	jmp $
 
+__isr_gp:
+	jmp $	
+	
+
 _gdt_tbl:
-	; NULL Segment
+; NULL Segment
+_gdt_null_desp:
 	dw 0x0000
 	dw 0x0000
 	dw 0x0000
 	dw 0x0000
 
-	; 32 Code Segment
+; 32 Code Segment
+_gdt_code_desp:
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
@@ -219,7 +294,8 @@ _gdt_tbl:
 	db 11001111b
 	db 0x00
 
-	; 32 Data Segment
+; 32 Data Segment
+_gdt_data_desp:
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
@@ -246,6 +322,9 @@ _gdt_tbl:
 _gdtr:
 	dw 0 
 	dd 0
+
+GDT_CODE equ _gdt_code_desp - _gdt_tbl
+GDT_DATA equ _gdt_data_desp - _gdt_tbl
 
 total_read_sec: dw 0
 start_cylin :   dw 0

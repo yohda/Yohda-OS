@@ -13,6 +13,9 @@ STACK_TOP equ 0x7C00
 BIOS_READ_SECS		equ 0x02
 BIOS_READ_DISK_INFO	equ 0x08
 
+; Disk
+DISK_SBL_SECS equ 4
+
 extern _sbl_start
 global vga_rows
 
@@ -20,7 +23,7 @@ SECTION .text
 jmp 0x0000:_fbl_start
 
 _fbl_start:
-	cli						; Disable interrupt	
+	;cli						; Disable interrupt	
 
 	mov byte [drive_number], dl	; set drive number
 
@@ -152,6 +155,7 @@ _disk_read:
 	popa
 	
 _sbl:
+	push word DISK_SBL_SECS+1	; total sectors to read in fbl
 	push word [drive_number]	; pass drive number 
 	push word [vga_rows] 		; pass command line number for sbl
 	push word [secs]			; pass sectors per track
