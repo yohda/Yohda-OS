@@ -8,7 +8,7 @@ extern main
 entry:
 
 ; 32-bt Kernel meta data
-PMODE_ENTRY_POINT equ 0x10000
+PMODE_ENTRY_POINT equ 0x100000
 DISK_SEG_LIMIT  equ 0xFFFF
 BIOS_READ_SECS	equ 0x02
 
@@ -36,33 +36,17 @@ _sbl_start:
 	pop word [drive_number]
 	pop word [total_read_sec]
 
-	; inti des
-		;xor ax, ax
-		;mov es, ax
-		;mov di, 0x5000
-		; init src 
-		;mov si, 0x7C00
-		;mov ds, ax
-		;mov ecx, 0x40000
-		;rep movsb 
-		;movsd
-		;movsd
-		;movsd
-		;movsd
-		;movs si, di
-
-
-	mov word [0x34], __isr_gp ; #GP
-	mov word [0x36], 0x00
-
+;	mov word [0x34], __isr_gp ; #GP
+;	mov word [0x36], 0x00
+;
 ;#define PIC1_CMD                    0x20
 ;#define PIC_READ_IRR                0x0a    
-
-	mov dx, 0x20
-	mov al, 0x0a
-	out dx, al
-
-	in al, dx
+;
+;	mov dx, 0x20
+;	mov al, 0x0a
+;	out dx, al
+;
+;	in al, dx
 	
 	push MSG_SEC_BOOT
 	call vga_text_print
@@ -182,49 +166,35 @@ _gdt_sec:
 	mov [_gdtr], ax
 	lgdt [_gdtr]
 
-; From here, start to get into unreal mode.
-_pre_unreal:	
+; From here, start to get into protected mode.
+_pre_pmode:	
 	mov eax, cr0
 	or al, 1
 	mov cr0, eax	
 
-_do_unreal:
-	mov ax, GDT_DATA		
-	mov ds, ax				; Load 32bit Date Segment Discriptor
-	mov es, ax
-	
-	and al, 0xFE		
-	mov cr0, eax			; Disable Protected Mode 
+	jmp GDT32_CODE:_penter
 
-_unreal_mode:
-	xor ax, ax 
-	mov ds, ax
-	mov es, ax
-
-	; inti des
-	xor eax, eax
-	mov es, eax
-	mov edi, 0x100000
-	; init src 
-	mov si, 0
-	mov ax, 0x1000
-	mov ds, ax
-	mov ecx, 0x4000
-	;movsb
-	rep movsb 
-	;movsd
-	;movs si, di
-
-_pmode:
-	jmp $
-
+[bits 32]
 _penter:
+	mov eax, GDT32_DATA		
+	mov ds, eax				; Load 32bit Date Segment Discriptor
+	mov es, eax
+	mov fs, eax
+	mov gs, eax
+
+	xor eax, eax
+	mov ds, eax
+	mov es, eax	
+	mov edi, PMODE_ENTRY_POINT
+	mov esi, 0x10000
+	mov ecx, 0x40000
+	rep movsb 
 
 	; below codes for protected mode
 	push word [total_read_sec]
 	jmp PMODE_ENTRY_POINT	; boot loader entry point of protected mode	
 
-
+[bits 16]
 ;;; function sections
 vga_text_print:
 	push bp
@@ -286,7 +256,7 @@ _gdt_null_desp:
 	dw 0x0000
 
 ; 32 Code Segment
-_gdt_code_desp:
+_gdt32_code_desp:
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
@@ -295,7 +265,7 @@ _gdt_code_desp:
 	db 0x00
 
 ; 32 Data Segment
-_gdt_data_desp:
+_gdt32_data_desp:
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
@@ -303,7 +273,8 @@ _gdt_data_desp:
 	db 11001111b
 	db 0x00
 
-	; 64 Code Segment
+; 64 Code Segment
+_gdt64_code_desp:
     dw 0xFFFF       ; limit = 0
     dw 0x0000       ; base1[16] = 0
     db 0x00         ; base2[8] = 0
@@ -311,7 +282,8 @@ _gdt_data_desp:
     db 0b10101111   ; G = 1, D/B = 0, L = 1, AVL = 0, LIMIT[3:0] = 0 
     db 0x00         ; base3[8] = 0
 	
-	; 64 Data Segment
+; 64 Data Segment
+_gdt64_data_desp:
     dw 0xFFFF       ; limit = 0
     dw 0x0000       ; base1[16] = 0
     db 0x00         ; base2[8] = 0
@@ -323,8 +295,10 @@ _gdtr:
 	dw 0 
 	dd 0
 
-GDT_CODE equ _gdt_code_desp - _gdt_tbl
-GDT_DATA equ _gdt_data_desp - _gdt_tbl
+GDT32_CODE equ _gdt32_code_desp - _gdt_tbl
+GDT32_DATA equ _gdt32_data_desp - _gdt_tbl
+GDT64_CODE equ _gdt64_code_desp - _gdt_tbl
+GDT64_DATA equ _gdt64_data_desp - _gdt_tbl
 
 total_read_sec: dw 0
 start_cylin :   dw 0

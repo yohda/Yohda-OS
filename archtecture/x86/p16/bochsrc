@@ -8,7 +8,7 @@ vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
 megs: 32
 
 # This is the additional package we installed. We add it into our configuration.
-display_library: sdl
+#display_library: x, options="gui_debug"
 
 # This emulates a physical device and loads our bootable IMG file into that device.
 #floppya: 1_44=./temp/bl.bin, status=inserted    

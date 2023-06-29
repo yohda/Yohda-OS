@@ -31,13 +31,12 @@ bl.elf: $(OBJS)
 	$(LD) $(LDFLAG) $^ -o $@	
 	objcopy -O binary -S $@ bl.bin
 
-q35:
-	$(QE32) $(QE32_FLAG) -fda $(OBJ_DIR)/bl.bin -boot c
-
 qf:
 	$(QE32) $(QE32_FLAG) -fda $(OBJ_DIR)/bl.bin -boot c
+
 qc:
 	$(QE32) $(QE32_FLAG) -drive file=$(OBJ_DIR)/bl.bin,media=cdrom -boot d #-fda $(OBJ_DIR)/bl.bin -boot c
+
 qh:
 	$(QE32) $(QE32_FLAG) -hda $(OBJ_DIR)/bl.img
 
@@ -50,7 +49,7 @@ post:
 	mv *.elf $(OBJ_DIR)
 	cp $(OBJ_DIR)/bl.bin $(OBJ_DIR)/bl.img 
 
-q35-debug:
+qf-debug:
 	$(QE32) $(QE32_Q35_FLAG) -fda $(OBJ_DIR)/bl.bin -boot c -S -s		
 
 qh-debug:
@@ -60,7 +59,7 @@ host-debug:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
 
 gdb:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:155' -ex 'continue'
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:185' -ex 'continue'
 
 clean:
 	rm -rf $(OBJ_DIR)	
