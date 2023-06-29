@@ -62,6 +62,7 @@
 /* File System Data Region */
 #define AHCI_FILE_SYSTEM_DATA_BASE 0x20000000
 struct ahci_manager {
+	int init;
 	u16 active_port;		
 };
 
@@ -96,10 +97,11 @@ int ahci_init(void)
 	
 	err = find_ahci_device(&tmp);
 	if(err) {
-		ahci_debug("failed to find ahci devie on, err#%d", err);
+		ahci_debug("failed to find ahci devie on, err#%d\n", err);
 		return err; 
 	}
 
+	mgr.init = err;
 	abar = tmp;	
 
 	ahci_debug("abar#0x%x\n", abar);

@@ -1,5 +1,6 @@
 #include "interrupt.h"
-#include "vga.h"
+#include "debug.h"
+#include "cpu.h"
 
 #define IDT_BASE_ADDR 	0x108000 
 #define IDT_ENTRY_SIZE	0x10
@@ -16,38 +17,45 @@ static struct idt32_entry  __attribute__((aligned(IDT_ENTRY_SIZE))) idt_tbl[IDT_
 
 void isr_common_handler(const int irq)
 {
-	vga_text_write(__func__);
-	vga_text_write(irq);
+	debug("irq:0x%x\n", irq);
 	while(1);
 }
 
 void isr_division_error_handler(const int irq)
 {
-	vga_text_write(__func__);	
+	debug("irq:0x%x\n", irq);
 	while(1);
 }
 
 void isr_non_maskable_interrupt_handler(const int irq)
 {
-	vga_text_write(__func__);	
+	
+	debug("irq:0x%x\n", irq);
+	
 	while(1);
 }
 
 void isr_general_protection_fault_handler(const int irq, const u32 err)
 {
-	vga_text_write(__func__);	
+	
+	debug("irq:0x%x\n", irq);
+	
 	while(1);
 }
 
 void isr_page_fault_handler(const int irq, const u32 err)
 {
-	vga_text_write(__func__);	
+	
+	debug("irq:0x%x\n", irq);
+	
 	while(1);
 }
 
 void isr_system_timer_handler(const int irq)
 {
-	vga_text_write(__func__);	
+	
+	debug("irq:0x%x\n", irq);
+	
 }
 
 void idt_reg_isr(const int vector, const u32 offset, const u8 attr)
