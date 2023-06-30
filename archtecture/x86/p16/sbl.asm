@@ -3,13 +3,26 @@
 
 [BITS 16]
 
-extern main
-
 entry:
+
+; Multiboot2 BOOT Information
+MBI_BASE equ 0x9000
+MBI_OST_MM equ 8 	; type#6
+; In yohdaOS, first boot information is `Memory map`. So, this offset is in 8 bytes(total_size + reserved)
+; If you want to add a new boot information, added new offset of boot information in below.
+; For example, if you want to add the `boot loader name(type#2), refer to below codes.
+; MBI_OST_BNAME equ MBI_OST_MM + 20(size of Mempry map information in bytes is 20B)
+
+
+; Memory Map(Type#6)
+MBI_MM_EBASE	equ 0x9200
+
+; Memory Map
+MM_SIG equ 0x534d4150
+MM_MIN_BUF_SIZE equ 20 ; Multiboot2 Memory Map MIN size 24B, But, BIOS Memory map MIN size = 20B. But, last 4 bytes are reserved. So, i think it`s not cared about.
 
 ; 32-bt Kernel meta data
 PMODE_ENTRY_POINT equ 0x100000
-DISK_SEG_LIMIT  equ 0xFFFF
 BIOS_READ_SECS	equ 0x02
 
 ; VGA 
@@ -47,11 +60,55 @@ _sbl_start:
 ;	out dx, al
 ;
 ;	in al, dx
-	
+
 	push MSG_SEC_BOOT
 	call vga_text_print
 	add sp, 2
 
+; BIOS 15h AX=0xE820
+_detect_mm:
+	clc	; clear carry flag
+	pusha
+	
+	mov [MBI_BASE+MBI_OST_MM], word 6				; type
+	mov [MBI_BASE+MBI_OST_MM+8], word 24			; entry size
+	mov [MBI_BASE+MBI_OST_MM+12], word 0	 		; entry version
+	mov [MBI_BASE+MBI_OST_MM+16], word MBI_MM_EBASE  ; base address
+
+	xor ebx, ebx
+	xor ecx, ecx
+	xor di, di
+	.detect_mm_loop:
+		xor eax, eax
+		xor ecx, ecx
+		mov eax, MBI_MM_EBASE
+		mov es, eax
+
+		mov edx, MM_SIG
+		mov eax, 0xe820	
+		mov ecx, MM_MIN_BUF_SIZE
+
+		int 0x15
+		jc _error
+
+		cmp eax, MM_SIG 	
+		jne _error
+
+		cmp ecx, MM_MIN_BUF_SIZE
+		jl _error	
+
+		add word [MBI_BASE+MBI_OST_MM+4], cx	; size	
+		cmp ebx, 0 	; If return value is zero, the value is last descriptor.
+		je _a20_sec
+
+		add di, cx
+		jmp .detect_mm_loop	
+	
+	mov ax, word [MBI_BASE+MBI_OST_MM+4]	
+	add word [MBI_BASE], ax ; added memory map size to total_size
+	
+	popa
+	
 _a20_sec:
 .a20_chk:
 	push es
@@ -182,13 +239,17 @@ _penter:
 	mov fs, eax
 	mov gs, eax
 
-	xor eax, eax
-	mov ds, eax
-	mov es, eax	
+	;xor eax, eax
+	;mov ds, eax
+	;mov es, eax	
 	mov edi, PMODE_ENTRY_POINT
 	mov esi, 0x10000
 	mov ecx, 0x40000
 	rep movsb 
+
+	; for compatibility of multiboot2
+	mov eax, 0x3f221d73 ; Yohda OS
+	mov ebx, 0x9000		; Machien State - Memory map
 
 	; below codes for protected mode
 	push word [total_read_sec]
@@ -300,6 +361,7 @@ GDT32_DATA equ _gdt32_data_desp - _gdt_tbl
 GDT64_CODE equ _gdt64_code_desp - _gdt_tbl
 GDT64_DATA equ _gdt64_data_desp - _gdt_tbl
 
+; disk
 total_read_sec: dw 0
 start_cylin :   dw 0
 start_head	:   dw 0
@@ -307,8 +369,10 @@ start_sec	:   dw 0
 cylins 		:   dw 0
 heads 		:	dw 0
 secs		: 	dw 0
-vga_rows	: 	dw 0
 drive_number: 	dw 0
+
+; vga
+vga_rows	: 	dw 0
 
 MSG_SEC_BOOT: 	db 'YohdaOS Secondary Boot Loader Start', 0
 A20_MSG:		db 'For entering to protected mode, preparing for the Gate-A20', 0
