@@ -1,5 +1,3 @@
-# Yohda-OS
-
 ## Supported Functions
 * **Mode**
     * Real mode
