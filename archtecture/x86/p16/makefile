@@ -59,7 +59,7 @@ host-debug:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
 
 gdb:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'set architecture i8086' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:75' -ex 'continue'
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break fbl.asm:_fbl_start' # -ex 'continue' -ex 'set architecture i8086' 
 
 clean:
 	rm -rf $(OBJ_DIR)	

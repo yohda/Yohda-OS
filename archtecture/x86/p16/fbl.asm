@@ -23,7 +23,7 @@ SECTION .text
 jmp 0x0000:_fbl_start
 
 _fbl_start:
-	;cli						; Disable interrupt	
+	cli						; Disable interrupt	
 
 	mov byte [drive_number], dl	; set drive number
 

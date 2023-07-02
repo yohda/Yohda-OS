@@ -6,12 +6,14 @@
 entry:
 
 ; Multiboot2 BOOT Information
+MM_MAGIC equ 0x36d76289
+MBI_BUF_SIZE equ 24 ; Multiboot2 Memory Map MIN size 24B, But, BIOS Memory map MIN size = 20B. But, last 4 bytes are reserved. So, set to 24 bytes
 MBI_BASE equ 0x9000
 MBI_OST_MM equ 8 	; type#6
 ; In yohdaOS, first boot information is `Memory map`. So, this offset is in 8 bytes(total_size + reserved)
 ; If you want to add a new boot information, added new offset of boot information in below.
 ; For example, if you want to add the `boot loader name(type#2), refer to below codes.
-; MBI_OST_BNAME equ MBI_OST_MM + 20(size of Mempry map information in bytes is 20B)
+; MBI_OST_BNAME equ MBI_OST_MM + 24(size of Mempry map information in bytes is 20B. But, boot information is alinged 8 bytes. Then, added the 4 bytes padding after that)
 
 
 ; Memory Map(Type#6)
@@ -19,7 +21,7 @@ MBI_MM_EBASE	equ 0x9200
 
 ; Memory Map
 MM_SIG equ 0x534d4150
-MM_MIN_BUF_SIZE equ 20 ; Multiboot2 Memory Map MIN size 24B, But, BIOS Memory map MIN size = 20B. But, last 4 bytes are reserved. So, i think it`s not cared about.
+BIOS_MM_MIN_BUF_SIZE equ 20
 
 ; 32-bt Kernel meta data
 PMODE_ENTRY_POINT equ 0x100000
@@ -38,7 +40,6 @@ global _sbl_start
 ; First, Change the operating mode from real mode to unreal mode. after that, from unreal mode to Protected mode.
 ; Second, Load the 32bit kernel into above 1MB.
 _sbl_start:
-	sti
 	pop word [start_cylin]
 	pop word [start_head]
 	pop word [start_sec]
@@ -61,32 +62,34 @@ _sbl_start:
 ;
 ;	in al, dx
 
+	mov [total_size], word 8 ; 8 = basic tags structure
+
 	push MSG_SEC_BOOT
 	call vga_text_print
 	add sp, 2
 
 ; BIOS 15h AX=0xE820
-_detect_mm:
+_mb_detect_mm:
 	clc	; clear carry flag
 	pusha
 	
-	mov [MBI_BASE+MBI_OST_MM], word 6				; type
-	mov [MBI_BASE+MBI_OST_MM+8], word 24			; entry size
-	mov [MBI_BASE+MBI_OST_MM+12], word 0	 		; entry version
-	mov [MBI_BASE+MBI_OST_MM+16], word MBI_MM_EBASE  ; base address
-
+	mov [MBI_BASE+MBI_OST_MM], word 6				 ; type
+	mov [MBI_BASE+MBI_OST_MM+4], word 16			 ; size
+	mov [MBI_BASE+MBI_OST_MM+8], word 24			 ; entry size
+	mov [MBI_BASE+MBI_OST_MM+12], word 0	 		 ; entry version
+	;mov [MBI_BASE+MBI_OST_MM+16], word MBI_MM_EBASE  ; base address
+	
 	xor ebx, ebx
 	xor ecx, ecx
-	xor di, di
-	.detect_mm_loop:
+	mov es, ebx
+	mov di, MBI_BASE+MBI_OST_MM+16
+	.detect_mm_loop_start:
 		xor eax, eax
 		xor ecx, ecx
-		mov eax, MBI_MM_EBASE
-		mov es, eax
-
+		
 		mov edx, MM_SIG
 		mov eax, 0xe820	
-		mov ecx, MM_MIN_BUF_SIZE
+		mov ecx, MBI_BUF_SIZE
 
 		int 0x15
 		jc _error
@@ -94,21 +97,42 @@ _detect_mm:
 		cmp eax, MM_SIG 	
 		jne _error
 
-		cmp ecx, MM_MIN_BUF_SIZE
+		cmp ecx, BIOS_MM_MIN_BUF_SIZE
 		jl _error	
 
-		add word [MBI_BASE+MBI_OST_MM+4], cx	; size	
+		add word [MBI_BASE+MBI_OST_MM+4], MBI_BUF_SIZE	; size	
 		cmp ebx, 0 	; If return value is zero, the value is last descriptor.
-		je _a20_sec
+		je .detect_mm_loop_end
 
-		add di, cx
-		jmp .detect_mm_loop	
-	
+		add di, MBI_BUF_SIZE
+		jmp .detect_mm_loop_start	
+
+	.detect_mm_loop_end:	
 	mov ax, word [MBI_BASE+MBI_OST_MM+4]	
-	add word [MBI_BASE], ax ; added memory map size to total_size
+	add word [total_size], ax ; added memory map size to total_size
 	
 	popa
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; If you want to add a new boot inforamtion, added that here!!! Never define the other place!!!
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+_mb_end:
+	pusha
+
+	mov bx, [total_size]
+	mov [MBI_BASE], bx 
 	
+	; Added End Tag
+	mov [MBI_BASE+bx], word 0
+	mov [MBI_BASE+bx+4], word 8	
+
+	add bx, 8 ; 8 = terminating 8 bytes
+	mov [total_size], bx 
+	mov [MBI_BASE], bx 
+
+	popa
+
 _a20_sec:
 .a20_chk:
 	push es
@@ -233,23 +257,22 @@ _pre_pmode:
 
 [bits 32]
 _penter:
+	; In this area, skip to set ss because for setting properly the stack position, we must to know system memery-map. So, the reposibility of setting stack delegates the boot-lodaer in protected mode.
 	mov eax, GDT32_DATA		
 	mov ds, eax				; Load 32bit Date Segment Discriptor
 	mov es, eax
 	mov fs, eax
 	mov gs, eax
 
-	;xor eax, eax
-	;mov ds, eax
-	;mov es, eax	
 	mov edi, PMODE_ENTRY_POINT
 	mov esi, 0x10000
 	mov ecx, 0x40000
 	rep movsb 
 
 	; for compatibility of multiboot2
-	mov eax, 0x3f221d73 ; Yohda OS
+	mov eax, MM_MAGIC   ; Yohda OS
 	mov ebx, 0x9000		; Machien State - Memory map
+	mov cx, GDT32_DATA  ;  
 
 	; below codes for protected mode
 	push word [total_read_sec]
@@ -360,6 +383,9 @@ GDT32_CODE equ _gdt32_code_desp - _gdt_tbl
 GDT32_DATA equ _gdt32_data_desp - _gdt_tbl
 GDT64_CODE equ _gdt64_code_desp - _gdt_tbl
 GDT64_DATA equ _gdt64_data_desp - _gdt_tbl
+
+; MM
+total_size  : 	dw 0
 
 ; disk
 total_read_sec: dw 0
