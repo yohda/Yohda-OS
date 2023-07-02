@@ -3,6 +3,13 @@
     * Real mode
     * Protected mode
     * Long mode
+* **Boot Loader**
+    * BIOS
+    * UEFI
+    * GRUB
+       * Multiboot 
+* **Architecture**
+    * Higher-half kernel
 * **Memory Map**
     * BIOS
     * GRUB
@@ -11,20 +18,26 @@
     * ATA / PATA / IDE
     * SATA / AHCI
 * **Memory Management**
+    * Segmentation
     * Paging
     * Buddy Allocator
+       * Lazy Buddy   
     * Fast Memory Pool
 * **File System**
   * FAT
-  * EXT
+* **Graphic**
+  * VGA
+     * Text Mode
+        * Scrolling   
   
 ## Supported Modes
 
-| Mode  | Supported |
+| ISA  | Supported |
 | ------------- |:-------------:|
-| 32-bit      | Y     |
-| 64-bit      | X     |
-
+| x86      | Y     |
+| x86-64      | Y     |
+| AArch32 | X |
+| AArch64 | X |
 
 ## Supported Emulators
 
