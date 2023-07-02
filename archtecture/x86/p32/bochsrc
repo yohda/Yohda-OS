@@ -1,0 +1,40 @@
+#*********************************************** ROM BIOS / ROM VGA Setup ***********************************************
+###########################################################################################################
+romimage: file=$BXSHARE/BIOS-bochs-latest
+vgaromimage: file=$BXSHARE/VGABIOS-elpin-2.40
+# pci: enabled=1, chipset=i440fx, slot1=pcivga
+
+
+#*********************************************** RAM Setup ***********************************************
+# We give our system 32 Mb of RAM.
+megs: 256
+# memory: guest=512, host=512
+
+
+
+#*********************************************** Drive Setup ***********************************************
+# Floppy
+#floppya: 1_44=./temp/bl.bin, status=inserted    
+#floppya: 2_88=./temp/bl.bin, status=inserted    
+
+
+# Hard Disk Teset
+#ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+#ata0-master: type=disk, path=disk.img, mode=flat, cylinders=1, heads=11, spt=47, translation=none
+
+
+# CD-ROM
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master:  type=cdrom, path=temp/kernel32.iso, status=inserted
+
+
+# Boot order setup 
+boot: disk, floppy, cdrom
+
+
+#*********************************************** Debug Setup ***********************************************
+# Logfile
+log: bochsout.txt
+
+# GUI Internal debugger
+#display_library: x, options="gui_debug"

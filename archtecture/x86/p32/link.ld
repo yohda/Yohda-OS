@@ -15,6 +15,8 @@ SECTIONS
 
 	.data :
     {
+		pbl.o (.data)
+		paging.o (.data)
         *(.data)
     }
 

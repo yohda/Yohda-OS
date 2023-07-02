@@ -2,7 +2,6 @@
 #include "debug.h"
 #include "cpu.h"
 
-#define IDT_BASE_ADDR 	0x108000 
 #define IDT_ENTRY_SIZE	0x10
 #define IDT_MAX_ENTRYS 	0x100
 

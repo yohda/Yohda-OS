@@ -14,7 +14,8 @@ GCC:=i686-elf-gcc
 STRICT:= 
 CFLAG:= -ffreestanding -g -Wall -Wextra -nostdlib -nostartfiles $(STRICT) $(INC) #-m64
 LD:=i686-elf-gcc
-ifdef GRUB
+
+ifdef G
 LDFLAG:= -O2 -nostdlib -T link-grub.ld
 else
 LDFLAG:= -O2 -nostdlib -T link.ld
@@ -30,8 +31,8 @@ IMG:=kernel.bin
 ELF_IMG:=kernel.elf
 
 YASM:=nasm
-ifdef GRUB
-YAFLAG:=-f elf32 -g3 -F dwarf -DMB
+ifdef G
+YAFLAG:=-f elf32 -g3 -F dwarf -DGRUB
 else
 YAFLAG:=-f elf32 -g3 -F dwarf
 endif
@@ -95,7 +96,7 @@ qf-debug:
 	$(QEMU) $(QEMU_Q35_FLAG) -fda $(OBJ_DIR)/${IMG} -S -s		
 
 qh-debug:
-	$(QEMU) $(QEMU_Q35_FLAG) -hda disk.img -s -S
+	$(QEMU) -m 4096 -M q35 -d int -no-reboot -no-shutdown -hda disk.img -s -S
 
 qc-debug:
 	$(QEMU) $(QEMU_Q35_FLAG) -cdrom $(OBJ_DIR)/kernel32.iso -s -S
@@ -107,10 +108,10 @@ i440-debug:
 	$(QEMU) $(QEMU_I440FX_FLAG) -fda $(OBJ_DIR)/${IMG} -S -s
 
 gdb:
-	gdb $(OBJ_DIR)/${ELF_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break pbl.asm:_start' -ex 'watch *0x300000' -ex 'continue' 
+	gdb $(OBJ_DIR)/${ELF_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break main.c:33' -ex 'continue' #-ex 'watch *0x300000'
 
 clean:
-	rm -rf $(OBJ_DIR)	
-	rm -f *.o *.d *.bin *.elf
-
+	rm -rf $(OBJ_DIR) ./iso
+	rm -f *.o *.d *.bin *.elf  *.img
+	
 -include $(SRCS:.c=.d)
