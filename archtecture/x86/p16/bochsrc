@@ -1,25 +1,38 @@
+#*********************************************** ROM BIOS / ROM VGA Setup ***********************************************
+###########################################################################################################
 romimage: file=$BXSHARE/BIOS-bochs-latest
-vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
-# memory: guest=512, host=512
+vgaromimage: file=$BXSHARE/VGABIOS-elpin-2.40
 # pci: enabled=1, chipset=i440fx, slot1=pcivga
-# ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 
+
+#*********************************************** RAM Setup ***********************************************
 # We give our system 32 Mb of RAM.
-megs: 32
+megs: 256
+# memory: guest=512, host=512
 
-# This is the additional package we installed. We add it into our configuration.
-#display_library: x, options="gui_debug"
 
-# This emulates a physical device and loads our bootable IMG file into that device.
+
+#*********************************************** Drive Setup ***********************************************
+# Floppy
 #floppya: 1_44=./temp/bl.bin, status=inserted    
+#floppya: 2_88=./temp/bl.bin, status=inserted    
+
+
+# Hard Disk Teset
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata0-master: type=disk, path=./temp/bl.img, mode=flat, cylinders=1, heads=11, spt=47, translation=none
-# ROM BIOS should search the bootable disk in this below order. 
+
+# Boot order setup 
 boot: disk, floppy, cdrom
 
+
+#*********************************************** Debug Setup ***********************************************
 # Logfile
 log: bochsout.txt
 
-# We don't need mouse emulation
-mouse: enabled=0
-
+# GDB
+#reset_on_triple_fault 0
+#gdbstub: enabled=0 
+#gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
+#magic_break: enable=1
+display_library: x, options="gui_debug"
