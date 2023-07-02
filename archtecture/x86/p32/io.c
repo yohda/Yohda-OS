@@ -9,10 +9,10 @@
 static u8 printable[ASCII_MAX] = 
 {
 	0,0,0,0,0,0,0,0, // 0 ~ 7
-	0,0,1,0,0,1,0,0, // 8 ~ 15
+	0,0,1,0,0,0,0,0, // 8 ~ 15
 	0,0,0,0,0,0,0,0, // 16 ~ 23
 	0,0,0,0,0,0,0,0, // 24 ~ 31
-	1,1,1,1,1,1,1,1, 
+	1,1,1,1,1,4,1,1, 
 	1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,
@@ -28,15 +28,11 @@ static u8 printable[ASCII_MAX] =
 
 struct pr_info {
 	va_list *args;
+	int curr_pos;
 	char buf[4096];
 };
 
 void (*pre)(struct pr_info *pi);
-
-static void pre_comm(struct pr_info *pi)
-{
-	// There is nothing... it`s just needed to keep the print interface form.	
-}
 
 static void pre_int(struct pr_info *pi)
 {
@@ -76,21 +72,18 @@ __attribute__ ((format (printf, 1, 2))) void kprintf(const char *fmt, ...)
 
 void vkprintf(const char *fmt, va_list args)
 {
-	u8 state = PRINT_NORMAL;
+	u8 state = PRINT_NORMAL, pre_state = PRINT_NORMAL;
 	struct pr_info pi;
 	char c;
 	int i = 0;
 
-	pi.args = &args;	
-	while(c = fmt[i++]) {
+	memset(pi.buf, 0, sizeof(pi.buf));
+	for(pi.args=&args; c=fmt[i]; i++) {
 		if(!printable[c])
 			continue;
 
-		memset(pi.buf, 0, sizeof(pi.buf));
-		pi.buf[0] = c;
-		pre = pre_comm;
 		if(state == PRINT_NORMAL) {
-			state = (c == '%') ? PRINT_FORMAT : PRINT_OUTPUT;	
+			state = printable[c];
 		} else if(state == PRINT_FORMAT) {
 			switch(c) {
 				case 'd':
@@ -108,17 +101,17 @@ void vkprintf(const char *fmt, va_list args)
 				break;
 				default:
 					// Error
-					pre = pre_comm;
 				break;
 			}
 
-			state = PRINT_OUTPUT;
+			pre(&pi);
 		} 
 		
-		if (state == PRINT_OUTPUT) {
-			pre(&pi);	
-			vga_text_write(pi.buf);
-			state = PRINT_NORMAL;	
+		if (state == PRINT_CHAR) {
+			pi.buf[i] = c;
+			state = PRINT_NORMAL;
 		} 
 	}
+
+	vt_flush_with_buf(pi.buf);
 }
