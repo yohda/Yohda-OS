@@ -7,8 +7,7 @@
 enum {
 	PRINT_NORMAL = 0x00, // `NORMAL` mode is available to select one of below two modes. this mode isn`t a special function.
 	PRINT_CHAR = 0x01, // `OUTPUT` mode is related to print character.
-	PRINT_CONTROL= 0x02, // `CONTROL` mode is related to ASCII[0x00:0x1F] and 0x7F.
-	PRINT_FORMAT = 0x04, // `FORMAT` mode is related to `%` format.
+	PRINT_FORMAT = 0x02, // `FORMAT` mode is related to `%` format.
 	PRINT_MAX,
 	PRINT_INVAL,
 };

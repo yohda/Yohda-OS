@@ -77,6 +77,12 @@ int main(unsigned long magic, unsigned long addr)
 	// Without that, there is nothing to see the debug log.
 	vga_text_init();
 
+	kprintf("vd#%s %d# #%s\n", "Yohda", 2023322321, "Operating System");
+	kprintf("%d%d\n", 2, 3);
+	kprintf("%s#de\n", "Yohda");
+	kprintf("\n\n");
+	kprintf("");
+	
 	kprintf("i\n3\ne");
 	kprintf("\n\nzzz");
 	kprintf("e\n\n\nyyy");
@@ -97,8 +103,8 @@ int main(unsigned long magic, unsigned long addr)
 	//kprintf("#%s\n\n", "YohdaOS");
 	//kprintf("%d", 48273-2938);
 	kprintf("eefergev\n");
-	return ;
 
+/*
 	kprintf("1newfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
 	kprintf("2newfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
 	kprintf("3newfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
@@ -115,17 +121,7 @@ int main(unsigned long magic, unsigned long addr)
 	kprintf("Enewfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
 	kprintf("Fnewfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
 
-	return ;
-
-	kprintf("%s\n Enter Protected mode\n", "Yohda");
-	kprintf("%d%d\n", 2, 3);
-	kprintf("%s\n Enter Protected mode\n", "Yohda");
-	kprintf("\n\n");
-	kprintf("");
-	
-	//debug("Enter Protected mode\n");
-
-	return ;
+*/
 
 	parse_multiboot(magic, addr);
 
