@@ -8,6 +8,7 @@
 #include "block/ahci.h"
 #include "debug.h"
 #include "multiboot2.h"
+#include "keyboard.h"
 
 extern void load_higher_half(void);
 
@@ -70,13 +71,13 @@ static int parse_multiboot(unsigned long magic, unsigned long mbi_base)
 
 int main(unsigned long magic, unsigned long addr)
 {
-	
 	int i;
 
 	// you must first initialize VGA other than.
 	// Without that, there is nothing to see the debug log.
 	vga_text_init();
-
+	
+	kprintf("%c%c\n", 'A', 'B');
 	kprintf("vd#%s %d# #%s\n", "Yohda", 2023322321, "Operating System");
 	kprintf("%d%d\n", 2, 3);
 	kprintf("%s#de\n", "Yohda");
@@ -129,7 +130,7 @@ int main(unsigned long magic, unsigned long addr)
 	if(CPUID_64) {
 		debug("CPUID#0x%x, X64#0x%x, 1GB#0x%x STD#0x%x EXT#0x%x\n", CPUID, CPUID_64, CPUID_PAGE_1GB, CPUID_STD_FUNCS, CPUID_EXT_FUNCS);
 		debug("x86-64 supported\n");	
-		mode64();
+		//mode64();
 	} else {
 		debug("x86-64 not supported\n");
 	}
@@ -144,6 +145,8 @@ int main(unsigned long magic, unsigned long addr)
 	
 	pci_init();
 	ahci_init();
+
+	keyboard_init();
 	//ata_init();
 
 	while(1);

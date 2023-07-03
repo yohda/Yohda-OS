@@ -2,7 +2,7 @@
 #include "string.h"
 
 #define VT_BASE (0xB8000) 
-#define VT_MONS (0x4)		// Monitor count
+#define VT_MONS (0x10)		// Monitor count
 #define VT_BUF_SIZE (VT_SIZE*VT_MONS)
 
 #define VT_EXCEED	((vga.curr_row)>=(VT_ROWS))
@@ -57,6 +57,14 @@ static int _vga_text_write(const char *c, const u8 fg, const u8 bg)
 {
 	while(*c) {
 		if(*c == '\n' || vga.curr_col >= VT_COLUMNS) {
+			if(vga.curr_row >= VT_MONS*VT_ROWS) {
+				// Screen Buffer Overflow
+				(*(vga.bp)).text = 'F';
+				(*(vga.bp+1)).text = 'u';
+				(*(vga.bp+1)).text = 'c';
+				(*(vga.bp+1)).text = 'k';
+			}
+
 			_vt_new_line();
 
 			c++;
@@ -68,6 +76,8 @@ static int _vga_text_write(const char *c, const u8 fg, const u8 bg)
 		c++;
 	}	
 
+	
+	
 	return 0;
 }
 

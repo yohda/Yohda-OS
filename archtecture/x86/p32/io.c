@@ -44,7 +44,7 @@ static void parse_int(struct pr_info *pi, const int idx)
 
 static void parse_char(struct pr_info *pi, const int idx)
 {
-	char ch = va_arg(*(pi->args), char);
+	char ch = va_arg(*(pi->args), char*);
 	pi->buf[idx] = ch;
 
 	pi->len = strlen(pi->buf);

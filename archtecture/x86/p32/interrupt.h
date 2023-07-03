@@ -3,6 +3,13 @@
 
 #include "type.h"
 
+extern void isr_division_error(void);
+extern void isr_non_maskable_interrupt(void);
+extern void isr_general_protection_fault(void);
+extern void isr_page_fault(void);
+extern void isr_system_timer_interrupt(void);
+extern void isr_ps2_keyboard_interrupt(void);
+
 enum {
 	INT_VEC_DBZ 		= 0x00,
 	INT_VEC_DBG,
@@ -15,6 +22,7 @@ enum {
 	INT_VEC_PF 			= 0x0E,
 	INT_RSVD1 			= 0x1F,
 	INT_VEC_SYS_TIMER 	= 0x20,
+	INT_VEC_PS2_KEY		= 0x21,
 	INT_VEC_MAX
 };
 

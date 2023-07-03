@@ -1,13 +1,16 @@
 #include "pic.h"
+#include "port.h"
 
-extern void outb(const u16 addr, const u8 val);
-extern u8 inb(const u16 addr); 
+//extern void outb(const u16 addr, const u8 val);
+//extern u8 inb(const u16 addr); 
+
+#define PIC_EOI			0x20
 
 #define PRI_PIC			0x20		/* IO base address for master PIC */
 #define SEC_PRI			0xA0		/* IO base address for slave PIC */
-#define PRI_PIC_COMMAND	PRI_PIC
+#define PRI_PIC_CMD		PRI_PIC
 #define PRI_PIC_DATA	(PRI_PIC+1)
-#define SEC_PRI_COMMAND	SEC_PRI
+#define SEC_PIC_CMD		SEC_PRI
 #define SEC_PIC_DATA	(SEC_PRI+1)
 
 #define PRI_PIC_REMAP	0x20		/* 0x20 ~ 0x27 */
@@ -25,16 +28,70 @@ extern u8 inb(const u16 addr);
 #define ICW4_BUF_MASTER	0x0C		/* Buffered mode/master */
 #define ICW4_SFNM		0x10		/* Special fully nested (not) */
 
-int pic_init()
+#define OCW1
+#define	OCW2 
+#define OCW3_IRR (0x0A)
+#define OCW3_ISR (0x0B)
+
+static uint16_t pic_get_regs(const uint8_t ocw)
+{
+	uint16_t regs = 0x0000;
+
+	outb(PRI_PIC_CMD, ocw);
+	outb(SEC_PIC_CMD, ocw);	
+
+	return (inb(SEC_PIC_CMD) << 8 | inb(PRI_PIC_CMD));
+}
+
+void pic_set_mask(const uint16_t _mask, const uint8_t flag)
+{
+	uint16_t mask = 0x0000;
+
+	mask = pic_get_imr();
+
+	mask = (flag) ? (mask | _mask) : (mask & ~_mask);
+
+	outb(PRI_PIC_DATA, mask);
+	outb(SEC_PIC_DATA, mask << 8 | 0xFF);
+}
+
+uint16_t pic_get_imr(void)
+{
+	uint16_t regs = 0x0000;
+	
+	regs = (inb(PRI_PIC_DATA) | inb(SEC_PIC_DATA) << 8);
+	
+	return regs;
+}
+
+uint16_t pic_get_irr(void)
+{
+	return pic_get_regs(OCW3_IRR);
+}
+
+uint16_t pic_get_isr(void)
+{
+	return pic_get_regs(OCW3_ISR);
+}
+
+void pci_eoi(const uint8_t irq)
+{
+	if(irq > 7)
+		outb(SEC_PIC_CMD, PIC_EOI);
+		
+	outb(PRI_PIC_CMD, PIC_EOI);
+}
+
+int pic_init(void)
 {
 	u8 a1, a2;
  
 	a1 = inb(PRI_PIC_DATA);                        // save masks
 	a2 = inb(SEC_PIC_DATA);
  
-	outb(PRI_PIC_COMMAND, ICW1_INIT | ICW1_ICW4);  // starts the initialization sequence (in cascade mode)
+	outb(PRI_PIC_CMD, ICW1_INIT | ICW1_ICW4);  // starts the initialization sequence (in cascade mode)
 	io_wait();
-	outb(SEC_PRI_COMMAND, ICW1_INIT | ICW1_ICW4);
+	outb(SEC_PIC_CMD, ICW1_INIT | ICW1_ICW4);
 	io_wait();
 	outb(PRI_PIC_DATA, PRI_PIC_REMAP);                 // ICW2: Master PIC vector offset
 	io_wait();
@@ -52,4 +109,6 @@ int pic_init()
  
 	outb(PRI_PIC_DATA, a1);   // restore saved masks.
 	outb(SEC_PIC_DATA, a2);	
+
+	pic_set_mask(PIC_IRQ0, true);
 }
