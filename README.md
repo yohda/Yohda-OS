@@ -3,6 +3,12 @@
     * Real mode
     * Protected mode
     * Long mode
+
+* **Emulators**
+   * QEMU
+   * BOCHS
+   * Virtualbox
+     
 * **Boot Loader**
     * BIOS
     * UEFI
