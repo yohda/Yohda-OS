@@ -44,13 +44,6 @@ void isr_page_fault_handler(const int irq, const u32 err)
 	while(1);
 }
 
-void isr_system_timer_handler(const int irq)
-{
-	debug("irq:0x%x\n", irq);
-	pci_eoi(irq);
-}
-
-
 void idt_reg_isr(const int vector, const u32 offset, const u8 attr)
 {
 	if(vector<0 || vector>IDT_MAX_ENTRYS)
@@ -77,8 +70,6 @@ void interrupt_init()
 	idt_reg_isr(INT_VEC_NMI, isr_non_maskable_interrupt, 0x8F);
 	idt_reg_isr(INT_VEC_GPF, isr_general_protection_fault, 0x8F);
 	idt_reg_isr(INT_VEC_PF, isr_page_fault, 0x8F);
-	idt_reg_isr(INT_VEC_SYS_TIMER, isr_system_timer_interrupt, 0x8F);
 	
 	__asm__ __volatile__ ("lidt %0" : : "m"(idtr));
-	sti();
 }

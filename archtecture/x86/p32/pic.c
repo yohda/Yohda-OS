@@ -28,8 +28,6 @@
 #define ICW4_BUF_MASTER	0x0C		/* Buffered mode/master */
 #define ICW4_SFNM		0x10		/* Special fully nested (not) */
 
-#define OCW1
-#define	OCW2 
 #define OCW3_IRR (0x0A)
 #define OCW3_ISR (0x0B)
 
@@ -109,6 +107,4 @@ int pic_init(void)
  
 	outb(PRI_PIC_DATA, a1);   // restore saved masks.
 	outb(SEC_PIC_DATA, a2);	
-
-	pic_set_mask(PIC_IRQ0, true);
 }

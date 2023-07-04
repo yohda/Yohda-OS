@@ -134,6 +134,7 @@ int main(unsigned long magic, unsigned long addr)
 	} else {
 		debug("x86-64 not supported\n");
 	}
+
 	/*
 	 * PIC remap some interrupts to prevent from hanppening the double fault.
 	 * So, PIC was initialized first than interrupt enable.
@@ -141,13 +142,16 @@ int main(unsigned long magic, unsigned long addr)
 	pic_init();
 	interrupt_init();	
 
+	pit_init();	
+	keyboard_init();
+	
 	mm_init(0x100000 * 512); // 512MB
 	
 	pci_init();
 	ahci_init();
 
-	keyboard_init();
 	//ata_init();
 
+	sti();
 	while(1);
 }
