@@ -9,6 +9,7 @@ extern void sti(void);
 extern int CPUID;		
 extern int CPUID_64;			
 extern int CPUID_EXT_FUNCS;		
+extern int CPUID_PAGE_4MB;
 extern int CPUID_PAGE_1GB;
 extern int CPUID_STD_FUNCS;	
 

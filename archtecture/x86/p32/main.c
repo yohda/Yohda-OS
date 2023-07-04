@@ -123,18 +123,17 @@ int main(unsigned long magic, unsigned long addr)
 	kprintf("Fnewfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
 
 */
-
 	parse_multiboot(magic, addr);
 
 	cpu_init();
 	if(CPUID_64) {
-		debug("CPUID#0x%x, X64#0x%x, 1GB#0x%x STD#0x%x EXT#0x%x\n", CPUID, CPUID_64, CPUID_PAGE_1GB, CPUID_STD_FUNCS, CPUID_EXT_FUNCS);
 		debug("x86-64 supported\n");	
 		//mode64();
 	} else {
 		debug("x86-64 not supported\n");
 	}
 
+	debug("CPUID#0x%x, X64#0x%x, 4MB#0x%x 1GB#0x%x STD#0x%x EXT#0x%x\n", CPUID, CPUID_64, CPUID_PAGE_4MB, CPUID_PAGE_1GB, CPUID_STD_FUNCS, CPUID_EXT_FUNCS);
 	/*
 	 * PIC remap some interrupts to prevent from hanppening the double fault.
 	 * So, PIC was initialized first than interrupt enable.
@@ -147,11 +146,12 @@ int main(unsigned long magic, unsigned long addr)
 	
 	mm_init(0x100000 * 512); // 512MB
 	
-	pci_init();
-	ahci_init();
+	//pci_init();
+	//ahci_init();
 
 	//ata_init();
 
 	sti();
+
 	while(1);
 }

@@ -4,7 +4,11 @@
 section .text
 
 CPUID_STD_BASE_CMD equ 0x00000000
+CPUID_STD_PROC_INFO_CMD equ (CPUID_STD_BASE_CMD + 1)
+CPUID_STD_PAGE_4MB		equ 1<<3
+
 CPUID_EXT_BASE_CMD equ 0x80000000
+CPUOD_EXT_PROC_INFO_CMD equ (CPUID_EXT_BASE_CMD + 1)
 CPUID_EXT_LONG_MODE 	equ 1<<29
 CPUID_EXT_PAGE_1GB 		equ	1<<26
 
@@ -45,7 +49,8 @@ _cpuid_is_supported:
 	pop ecx
 	pop eax	
 
-_cpuid_check_std_func:
+;;;;;;;;;; Basic CPUID
+_cpuid_basic_check_std_func:
 	push eax
 
 	mov eax, CPUID_STD_BASE_CMD
@@ -53,8 +58,9 @@ _cpuid_check_std_func:
 	
 	cmp eax, CPUID_STD_BASE_CMD
 	jbe .cpuid_no_std 		
-		and eax, 0xFF
-		jmp .end
+	
+	and eax, 0xFF
+	jmp .end
 	
 	.cpuid_no_std:
 		mov eax, 0
@@ -64,7 +70,28 @@ _cpuid_check_std_func:
 	
 	pop eax
 
-_cpuid_x64:
+_cpuid_basic_4mb_page:
+	push eax
+
+	mov eax, CPUID_STD_PROC_INFO_CMD
+	cpuid
+
+	and edx, CPUID_STD_PAGE_4MB
+	cmp edx, 0 
+	je .cpuid_no_4mb_page
+	
+	mov [CPUID_PAGE_4MB], dword 1
+	jmp .end
+
+	.cpuid_no_4mb_page:
+	mov [CPUID_PAGE_4MB], dword 0
+
+	.end:		
+
+	pop eax
+
+;;;;;;;;;; Extended CPUID
+_cpuid_ext_x64:
 	push eax
 
 	mov eax, CPUID_EXT_BASE_CMD
@@ -75,7 +102,7 @@ _cpuid_x64:
 		and eax, 0xFF
 		mov dword [CPUID_EXT_FUNCS], eax
 
-		mov eax, 0x80000001					; call extended function(0x8000_0001) to get whether or not is supported long mode
+		mov eax, CPUOD_EXT_PROC_INFO_CMD	; call extended function(0x8000_0001) to get whether or not is supported long mode
 		cpuid
 
 		and edx, CPUID_EXT_LONG_MODE		; long mode bit 29
@@ -92,10 +119,10 @@ _cpuid_x64:
 		
 	pop eax
 
-_cpuid_page_1gb:
+_cpuid_ext_page_1gb:
 	push eax
 
-	mov eax, 0x80000001					; call extended function(0x8000_0001) to get whether or not is supported long mode
+	mov eax, CPUOD_EXT_PROC_INFO_CMD	; call extended function(0x8000_0001) to get whether or not is supported long mode
 	cpuid
 
 	and edx, CPUID_EXT_PAGE_1GB		; page 1GB bit 26
@@ -143,11 +170,12 @@ mode64:
 
 ;;;;;; data section
 section .data
-global CPUID, CPUID_64, CPUID_EXT_FUNCS, CPUID_PAGE_1GB, CPUID_STD_FUNCS
+global CPUID, CPUID_64, CPUID_EXT_FUNCS, CPUID_PAGE_4MB, CPUID_PAGE_1GB, CPUID_STD_FUNCS
 
 CPUID:					dd 0
 CPUID_64:				dd 0
 CPUID_EXT_FUNCS:		dd 0
+CPUID_PAGE_4MB:			dd 0
 CPUID_PAGE_1GB:			dd 0
 CPUID_STD_FUNCS: 		dd 0
 

@@ -3,7 +3,9 @@
 
 [BITS 32]
 
-extern main
+extern CPUID_PAGE_4MB
+extern higher_half_start
+
 MB_MAGIC_YOHDA_OS	equ 0x3f221d73
 MB_MAGIC_MACH_STATE equ 0x36d76289
 
@@ -45,10 +47,11 @@ multiboot_header_end:
 
 section .bss
 align 16
+stack_bottom:
 resb 1024*32 ; 32KB
 stack_top:
 
-section .text
+section .text.boot exec
 global _start
 
 _start: 
@@ -72,18 +75,37 @@ pstart:
 	mov ss, cx
 	mov ebp, stack_top	
 	mov esp, stack_top
-
-	push ebx ; push the pointer to multiboot information structure
-	push eax ; push the magic value
-
-	call main
 	
-	jmp $				; Nevere come here
+	mov ecx, cr4
+	or ecx, 1<<4
+	mov cr4, ecx
+
+	mov [pde], dword 0x00000083			; Identify Mapped [0x100000:0x400000]
+	;mov [pde+768*4], dword 0x00000083	; Identify Mapped [0xC0000000:0xC0400000]
+	mov ecx, pde
+	mov cr3, ecx	
+
+	mov ecx, cr0
+	or ecx, 1<<31
+	mov cr0, ecx
+
+	jmp higher_half_start
+
+section .data.boot
+align 4096
+global pde
+pde:
+	dd 0x00000083
+	times 767 dd 0x00000000
+%assign i 0
+%rep 256
+	dd 0x00000083 + i
+%assign i i+0x400000
+%endrep
 
 %ifdef GRUB
-section .data
 align 8
-_gdt_start
+_gdt_start:
 _gdt_tbl:
 ; NULL Segment
 _gdt_null_desp:
@@ -127,7 +149,7 @@ _gdt64_data_desp:
     db 0b10010010   ; P = 1, DPL[6:5] = 0, S = 1, TYPE[3:0] = 0010 
     db 0b11001111   ; G = 1, D/B = 1, L = 0, AVL = 0, LIMIT[3:0] = 0 
     db 0x00         ; base3[8] = 0
-_gdt_end
+_gdt_end:
 
 _gdtr:
     dw _gdt_end - _gdt_start - 1 
