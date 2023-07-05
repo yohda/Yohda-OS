@@ -10,6 +10,13 @@ extern void isr_page_fault(void);
 extern void isr_system_timer_interrupt(void);
 extern void isr_ps2_keyboard_interrupt(void);
 
+struct exception_info {
+	uint32_t ds, es, fs, gs;
+	uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
+	uint32_t irq ,err;
+	uint32_t eip, cs, eflags, uesp, uss; // prefix `u` is related to user-level
+};
+
 enum {
 	INT_VEC_DBZ 		= 0x00,
 	INT_VEC_DBG,

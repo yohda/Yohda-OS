@@ -35,5 +35,6 @@ int vga_text_init();
 int vga_text_write(const char *c);
 int vt_new_line(const char* buf);
 int vt_flush(void);
+int vt_cls(void);
 
 #endif

@@ -1,4 +1,3 @@
-VIRT_BASE = 0xC0000000;
 SECTIONS
 {
 	. = 0x100000; 
@@ -14,30 +13,34 @@ SECTIONS
     }
 
 	eboot_size = .;
+	
+	_virt_base = 0xC0000000;
+	. = _virt_base;
 	. = eboot_size + 0xC0000000;
 
-	skernel_size = .;	
-	.text : AT(ADDR(.text) - VIRT_BASE)
+	_kernel32_start = .;	
+	.text : AT(ADDR(.text) - _virt_base)
 	{
 		paging.o (.text)
 		main.o (.text)
 		*(.text)
 	}
 
-	.rodata : AT(ADDR(.rodata) - VIRT_BASE)
+	.rodata : AT(ADDR(.rodata) - _virt_base)
 	{
 		*(.rodata)
 	}
 
-	.data : AT(ADDR(.data) - VIRT_BASE)
+	.data : AT(ADDR(.data) - _virt_base)
     {
         *(.data)
     }
 
-	.bss : AT(ADDR(.bss) - VIRT_BASE)
+	.bss : AT(ADDR(.bss) - _virt_base)
     {
         *(.bss)
 		*(COMMON)
     }
-	ekernel_size = .;
+	_kernel32_end = .;
+	_kernel32_size = _kernel32_end - _kernel32_start;
 }

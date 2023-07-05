@@ -75,8 +75,6 @@ static int _vga_text_write(const char *c, const u8 fg, const u8 bg)
 
 		c++;
 	}	
-
-	
 	
 	return 0;
 }
@@ -99,11 +97,32 @@ int vga_text_write(const char *c)
 	return 0;
 }
 
+int vt_cls(void)
+{
+	int i, j;
+	memset(vga.bp, 0x00, VT_SIZE*2);
+	for(i=0; i<(VT_ROWS*VT_MONS); i++) {
+		for(j=0; j<VT_COLUMNS; j++) {
+			vga.buffer[i][j].text = 0;	
+			vga.buffer[i][j].attr = VT_WHITE;
+		}
+	}
+
+	vga.curr_row = 0;
+	vga.curr_col = 0;
+	vga.pre_row = 0;
+	vga.pre_col = 0;
+}
+
 int vga_text_init()
 {
 	int i, j;
 	vga.bp = (struct vga_text *)VT_BASE;
 	vga.cp = vga.bp;
+
+	vt_cls();
+	
+	return 0;
 
 	vga.curr_row = 0;
 	vga.curr_col = 0;

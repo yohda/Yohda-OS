@@ -107,4 +107,6 @@ int pic_init(void)
  
 	outb(PRI_PIC_DATA, a1);   // restore saved masks.
 	outb(SEC_PIC_DATA, a2);	
+
+	//pic_set_mask(PIC_IRQ0, true);
 }

@@ -8,6 +8,7 @@
 #include "bitmap.h"
 #include "string.h"
 #include "io.h"
+#include "vmm.h"
 
 /* For Test */
 #define MM_TEST_HEAP128K_LL2048_BITMAP32x 
@@ -189,8 +190,6 @@ int mm_get_sec_llc(void)
 	return MM_SEC_CHUNK_LLC;
 }
 
-// RAM 사이즈에 대한 디텍은 BIOS 나 UEFI를 통해서 하는게 가장 좋다고 한다.
-// 이게 Memory Controller를 통해서 RAM 사이즈를 얻는 경우가 가장 좋다는거 같은데, BIOS 나 UEFI가 칩 벤더 레벨에서 알아서 이 정보를 가져와 주기 때문인 거 같다.
 int mm_init(const int heap_size)
 {
 	int real_size = 0, rmd = 0;
@@ -200,7 +199,7 @@ int mm_init(const int heap_size)
 		return err_dbg(-1, "Heap memory isn`t insufficient size#0x%x\n", heap_size);
 
 	mmm.org_size = heap_size;
-	rmd = mmi_init(MM_BASE, heap_size);
+	rmd = mmi_init(vmm_phy_to_virt(MM_BASE), heap_size);
 	if(rmd < 0)
 		return err_dbg(-1, "Failed to initialize Memoery Management\n");
 

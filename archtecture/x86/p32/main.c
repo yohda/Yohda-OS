@@ -128,7 +128,7 @@ int main(unsigned long magic, unsigned long addr)
 	cpu_init();
 	if(CPUID_64) {
 		debug("x86-64 supported\n");	
-		//mode64();
+		mode64();
 	} else {
 		debug("x86-64 not supported\n");
 	}
@@ -144,8 +144,9 @@ int main(unsigned long magic, unsigned long addr)
 	pit_init();	
 	keyboard_init();
 	
+	vmm_init();	
 	mm_init(0x100000 * 512); // 512MB
-	
+
 	//pci_init();
 	//ahci_init();
 

@@ -12,9 +12,6 @@
 
 /* 64-bit yohdaOS Memory Layout */
 #define MM_BASE				(0x2000000) 				// 32MB
-#define MM_META_BASE 		(MM_BASE)					// 32MB
-#define MM_HEAP_META_BASE	((MM_META_BASE)|(0x10000))	// 32MB + 64KB
-#define MM_HEAP_DATA_BASE  	(0x2100000)
 
 // Actually Physical RAM size is 4GB. But, it is imposible to assign all 4GB. The parts in it are used in boot and system. 
 #define MM_RAM_SIZE 		(1*1023*891*913) 	
