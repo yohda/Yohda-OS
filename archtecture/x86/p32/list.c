@@ -70,7 +70,7 @@ struct list_node *list_get(struct list_node *head)
 	node = head->next;
 
 	head->next = head->next->next;
-	head->next->next->prev = head;
+	head->next->prev = head;
 
 	return node;	
 }
