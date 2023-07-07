@@ -100,6 +100,10 @@ int vga_text_write(const char *c)
 int vt_cls(void)
 {
 	int i, j;
+
+	/**
+	 * In VGA, to represent a character it needs two bytes. first is color attribute, second is a character.  
+	 */
 	memset(vga.bp, 0x00, VT_SIZE*2);
 	for(i=0; i<(VT_ROWS*VT_MONS); i++) {
 		for(j=0; j<VT_COLUMNS; j++) {
@@ -121,21 +125,6 @@ int vga_text_init()
 	vga.cp = vga.bp;
 
 	vt_cls();
-	
-	return 0;
-
-	vga.curr_row = 0;
-	vga.curr_col = 0;
-	vga.pre_row = 0;
-	vga.pre_col = 0;
-
-	/**
-	 * For represent a character, it needs two bytes. first is color attribute, second is a character.  
-	 */
-	memset(vga.bp, 0x00, VT_SIZE*2);
-	for(i=0; i<(VT_ROWS*VT_MONS); i++)
-		for(j=0; j<VT_COLUMNS; j++) 
-			vga.buffer[i][j].attr = VT_WHITE;
 	
 	return 0;
 }

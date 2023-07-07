@@ -1,12 +1,13 @@
 #include "interrupt.h"
+#include "sys.h"
 #include "debug.h"
 #include "cpu.h"
 
 #define IDT_ENTRY_SIZE	0x10
 #define IDT_MAX_ENTRYS 	0x100
 
-static struct idtr32 idtr;
-static struct idt32_entry  __attribute__((aligned(IDT_ENTRY_SIZE))) idt_tbl[IDT_MAX_ENTRYS];
+static struct intr_desc_tbl_reg32 idtr;
+static struct intr_desc_tbl_entry32 __attribute__((aligned(IDT_ENTRY_SIZE))) idt_tbl[IDT_MAX_ENTRYS];
 
 void isr_common_handler(const int irq)
 {

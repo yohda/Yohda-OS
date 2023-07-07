@@ -4,9 +4,10 @@
 #include "limit.h"
 #include "string.h"
 
-#define ASCII_MAX	128
+#define IO_ASCII_MAX	128
+#define IO_STR_LEN		256
 
-static u8 printable[ASCII_MAX] = 
+static u8 printable[IO_ASCII_MAX] = 
 {
 	0,0,0,0,0,0,0,0, // 0 ~ 7
 	0,0,1,0,0,0,0,0, // 8 ~ 15
@@ -29,7 +30,7 @@ static u8 printable[ASCII_MAX] =
 struct pr_info {
 	va_list *args;
 	int len;
-	char buf[4096];
+	char buf[IO_STR_LEN];
 };
 
 static void (*parse)(struct pr_info *pi, const int idx);

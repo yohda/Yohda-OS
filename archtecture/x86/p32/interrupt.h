@@ -38,12 +38,14 @@ enum {
 #define IDT_ATTR_TYPE_16INT		(0x06)
 #define IDT_ATTR_TYPE_16TRAP	(0x07)
 #define IDT_PRES				(0x80)
-
+/*
+// interrupt descriptor table register
 struct idtr32 {
 	u16 limit;
 	u32 base;
 }__attribute__((packed));
 
+// interrupt descriptor table entry
 struct idt32_entry {
 	u16 loffset;
 	u16 selector;
@@ -51,5 +53,5 @@ struct idt32_entry {
 	u8 attr;
 	u16 hoffset;
 }__attribute__((packed));
-
+*/
 #endif

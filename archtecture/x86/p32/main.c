@@ -2,6 +2,7 @@
 #include "interrupt.h"
 #include "cpu.h"
 #include "ata.h"
+#include "pit.h"
 #include "pic.h"
 #include "io.h"
 #include "mm/mm.h"
@@ -9,6 +10,7 @@
 #include "debug.h"
 #include "multiboot2.h"
 #include "keyboard.h"
+#include "proc.h"
 
 extern void load_higher_half(void);
 
@@ -67,6 +69,24 @@ static int parse_multiboot(unsigned long magic, unsigned long mbi_base)
 	}
 
 	return 0;
+}
+
+void test1()
+{
+	while(1) {
+		debug("123123\n");
+		msleep(1000);
+		sched_yield();
+	}
+}
+
+void test2()
+{
+	while(1) {
+		debug("456456\n");
+		msleep(1000);
+		sched_yield();
+	}
 }
 
 int main(unsigned long magic, unsigned long addr)
@@ -140,19 +160,35 @@ int main(unsigned long magic, unsigned long addr)
 	 * */
 	pic_init();
 	interrupt_init();	
-
+	
 	pit_init();	
 	keyboard_init();
 	
+	sti();
+	
+	//msleep(3000);
+	//kprintf("123123123123\n");
+	//msleep(1000);
+	//kprintf("456456456456\n");
+	//msleep(2000);
+	//kprintf("789789789789\n");
+
+	/* Memory Initilization */	
 	vmm_init();	
 	mm_init(0x100000 * 512); // 512MB
 
+	/* Process Initilization */	
+	proc_init();
+	proc_create(test1);
+	proc_create(test2);
+
+	sched();	
+	
+	/* Device initialization */
 	//pci_init();
 	//ahci_init();
 
 	//ata_init();
-
-	sti();
 
 	while(1);
 }

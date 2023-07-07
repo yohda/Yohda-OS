@@ -3,4 +3,6 @@
 
 #include "type.h"
 
+void msleep(const int msec);
+
 #endif
