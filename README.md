@@ -16,13 +16,20 @@
        * Multiboot 
 * **Architecture**
     * Higher-half kernel
+
 * **Memory Map**
     * BIOS
     * GRUB
     * UEFI
+
 * **Disk Drive**
     * ATA / PATA / IDE
     * SATA / AHCI
+
+* **Process Management**
+    * Thread
+    * Scheduling
+
 * **Memory Management**
     * Segmentation
     * Paging
