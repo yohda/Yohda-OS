@@ -12,6 +12,7 @@ enum {
 	PIC_IRQ_INVAL,
 };
 
+void pic_eoi(const uint8_t irq);
 uint16_t pic_get_imr(void);
 uint16_t pic_get_irr(void);
 uint16_t pic_get_isr(void);

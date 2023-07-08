@@ -93,9 +93,13 @@ int main(unsigned long magic, unsigned long addr)
 {
 	int i;
 
+	page_init();
 	// you must first initialize VGA other than.
 	// Without that, there is nothing to see the debug log.
+	vmm_init();
+	
 	vga_text_init();
+	mm_init(0x100000 * 512); // 512MB
 	
 	kprintf("%c%c\n", 'A', 'B');
 	kprintf("vd#%s %d# #%s\n", "Yohda", 2023322321, "Operating System");
@@ -143,12 +147,12 @@ int main(unsigned long magic, unsigned long addr)
 	kprintf("Fnewfjioergjierogherilgh8efh89q3yr8o3gea78rg7rkueyfbyeufbaw7k83ga378r7w8gra37r8g7f8awhf78awfy7karya8\n");
 
 */
-	parse_multiboot(magic, addr);
+	parse_multiboot(magic, vmm_phy_to_virt(addr));
 
 	cpu_init();
 	if(CPUID_64) {
 		debug("x86-64 supported\n");	
-		mode64();
+		//mode64();
 	} else {
 		debug("x86-64 not supported\n");
 	}
@@ -163,32 +167,20 @@ int main(unsigned long magic, unsigned long addr)
 	
 	pit_init();	
 	keyboard_init();
-	
+
 	sti();
-	
-	//msleep(3000);
-	//kprintf("123123123123\n");
-	//msleep(1000);
-	//kprintf("456456456456\n");
-	//msleep(2000);
-	//kprintf("789789789789\n");
-
-	/* Memory Initilization */	
-	vmm_init();	
-	mm_init(0x100000 * 512); // 512MB
-
-	/* Process Initilization */	
-	proc_init();
-	proc_create(test1);
-	proc_create(test2);
-
-	sched();	
-	
 	/* Device initialization */
 	//pci_init();
 	//ahci_init();
 
 	//ata_init();
+	
+	/* Process Initilization */	
+	proc_init();
+	proc_create(test1);
+	proc_create(test2);
+
+	//sched();	
 
 	while(1);
 }

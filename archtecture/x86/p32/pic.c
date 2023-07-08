@@ -72,7 +72,7 @@ uint16_t pic_get_isr(void)
 	return pic_get_regs(OCW3_ISR);
 }
 
-void pci_eoi(const uint8_t irq)
+void pic_eoi(const uint8_t irq)
 {
 	if(irq > 7)
 		outb(SEC_PIC_CMD, PIC_EOI);

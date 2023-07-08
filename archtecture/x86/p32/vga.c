@@ -15,6 +15,7 @@ struct dev_vga {
 	uint32_t curr_col;
 	uint32_t pre_row;
 	uint32_t pre_col;
+	uint8_t inited;
 };
 
 struct dev_vga vga;
@@ -42,6 +43,9 @@ static int _vt_flush(void)
 
 int vt_flush(void)
 {
+	if(!vga.inited)
+		return -1;
+	
 	_vt_flush();
 }
 
@@ -81,19 +85,29 @@ static int _vga_text_write(const char *c, const u8 fg, const u8 bg)
 
 int vt_flush_with_buf(const char *buf)
 {
+	if(!buf || !vga.inited)
+		return -1;
+
 	_vga_text_write(buf, VT_WHITE, VT_BLACK);
 	_vt_flush();
 }
 
 int vt_new_line(const char *buf)
 {
+	if(!buf || !vga.inited)
+		return -1;
+	
 	_vga_text_write(buf, VT_WHITE, VT_BLACK);
 	_vt_new_line();
 }
 
 int vga_text_write(const char *c)
 {
+	if(!c || !vga.inited)
+		return -1;
+
 	_vga_text_write(c, VT_WHITE, VT_BLACK);
+
 	return 0;
 }
 
@@ -101,6 +115,8 @@ int vt_cls(void)
 {
 	int i, j;
 
+	if(!vga.inited)
+		return -1;
 	/**
 	 * In VGA, to represent a character it needs two bytes. first is color attribute, second is a character.  
 	 */
@@ -121,10 +137,13 @@ int vt_cls(void)
 int vga_text_init()
 {
 	int i, j;
-	vga.bp = (struct vga_text *)VT_BASE;
+
+	vga.bp = (struct vga_text *)vmm_phy_to_virt(VT_BASE);
 	vga.cp = vga.bp;
+	
+	vga.inited = true;
 
 	vt_cls();
-	
+
 	return 0;
 }

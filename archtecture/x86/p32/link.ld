@@ -1,19 +1,20 @@
 SECTIONS
 {
+	/* Before paging enabled */
 	. = 0x100000; 
 	sboot_size = .;
 	.text.boot :
 	{
-		pbl.o (.text.boot)
+		paging.o (.text.boot)
 	}
 
 	.data.boot :
     {
-		pbl.o (.data.boot)
+		paging.o (.data.boot)
     }
-
 	eboot_size = .;
 	
+	/* After paging enabled */
 	_virt_base = 0xC0000000;
 	. = _virt_base;
 	. = eboot_size + 0xC0000000;
@@ -21,7 +22,7 @@ SECTIONS
 	_kernel32_start = .;	
 	.text : AT(ADDR(.text) - _virt_base)
 	{
-		paging.o (.text)
+		pbl.o (.text)
 		main.o (.text)
 		*(.text)
 	}

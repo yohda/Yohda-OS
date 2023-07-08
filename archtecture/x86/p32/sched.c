@@ -147,6 +147,7 @@ void sched_add_ready(struct proc_ctrl_blk *proc)
 
 int sched_init(struct proc_ctrl_blk *dummy)
 {	
+	/* Scheduler Initialization  */
 	memset(scheduler, 0, sizeof(scheduler));
 	scheduler.ready_list = yalloc(sizeof(struct list_node));
 	if(!scheduler.ready_list)	
@@ -159,17 +160,15 @@ int sched_init(struct proc_ctrl_blk *dummy)
 	if(!dummy)
 		return err_dbg(-3, "err\n");	
 
-	scheduler.proc = dummy;
-	_sched_add_ready(dummy);
-
 	list_init_head(scheduler.ready_list);
 	list_init_head(scheduler.block_list);
-
+	
 	scheduler.readys = 0;
 	scheduler.blocks = 0;
-
-
-
+	
 	scheduler.inited = true;
 
+	/* Kernel Init Process is scheduler */	
+	scheduler.proc = dummy;
+	_sched_add_ready(dummy);
 }

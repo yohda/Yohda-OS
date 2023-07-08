@@ -31,6 +31,9 @@ struct list_node *list_add(struct list_node *head, struct list_node *new)
 	if(head == NULL || new == NULL)
 		return NULL;
 
+	if(head->prev == NULL || head->next == NULL)
+		return NULL;
+
 	new->prev = head->prev;
 	new->next = head;
 

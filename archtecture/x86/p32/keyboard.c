@@ -4,9 +4,6 @@
 #include "pic.h"
 #include "port.h"
 
-uint8_t scan_code[1024];
-uint32_t idx;
-
 static const char scan_code_set1[128] =
 {
     0,  27, '1', '2', '3', '4', '5', '6', '7', '8',	/* 9 */
@@ -51,7 +48,7 @@ void isr_ps2_keyboard_interrupt_handler(const int irq)
 {
 	uint8_t code = inb(0x60);
 	if(code >= 128) {
-		pci_eoi(irq);
+		pic_eoi(irq);
 		return ;
 	}
 
@@ -65,7 +62,7 @@ void isr_ps2_keyboard_interrupt_handler(const int irq)
 
 	char c = scan_code_set1[code]; 
 	kprintf("%c", c);
-	pci_eoi(irq);
+	pic_eoi(irq);
 }
 
 int keyboard_init(void)
