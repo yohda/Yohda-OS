@@ -50,8 +50,8 @@ _sbl_start:
 	pop word [drive_number]
 	pop word [total_read_sec]
 
-;	mov word [0x34], __isr_gp ; #GP
-;	mov word [0x36], 0x00
+	mov word [0x34], __isr_gp ; #GP
+	mov word [0x36], 0x00
 ;
 ;#define PIC1_CMD                    0x20
 ;#define PIC_READ_IRR                0x0a    
@@ -146,9 +146,10 @@ _a20_sec:
 	mov cx, [es:0x7E0E] ; cx 0xFFFF:0x7E0E => 0x107DFE
 
 	pop es
-	
+
 	cmp bx, cx
-	jne _load_kernel 
+	;jne _load_kernel 
+	jne _gdt_sec
 
 ; When reached at this line, A20 is disabled and you must enable this before entering the protected mode. 
 .a20_enable:
@@ -156,18 +157,52 @@ _a20_sec:
     call vga_text_print         
     add sp, 2
 
+; From here, preapre for GDT used in protected mode
+_gdt_sec:
+	push GDT_MSG               
+    call vga_text_print         
+    add sp, 2
+
+.gdt_load:
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, _gdt_tbl
+	mov [_gdtr+2], eax
+	mov eax, _gdtr
+	sub eax, _gdt_tbl
+	mov [_gdtr], ax
+	lgdt [_gdtr]
+
+; From here, switch from real mode to unreal mode
+_pre_unreal:    
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax    
+
+_do_unreal:
+    mov ax, GDT32_DATA        
+    mov ds, ax              ; Load 32bit Date Segment Discriptor
+
+    and al, 0xFE        
+    mov cr0, eax            ; Disable Protected Mode 
+
+_unreal_mode:
+    xor ax, ax 
+    mov ds, ax
+    mov es, ax
+    
+    mov ecx, 0x100008
+    mov dword [ds:ecx], 0x99aabbcc
+
 ; Fron now on, Load the 32bit kernel into 1MB. 
 _load_kernel:
 	pusha
-	
+
 	mov ax, 0x1000  					; 32bit kernel base address = 0x100000 
 	mov es, ax
 	xor bx, bx
-
-	;xor ax, ax
-	;mov es, ax
-	;mov ebx, 0x10000
-
+		
 	mov word [total_read_sec], 1 + 4 	; 1 - Size of PBL , 4 - Size of SBL
 	
 	_disk_loop:
@@ -186,21 +221,39 @@ _load_kernel:
 		jne _error	
 
 		; count total sectors to read
-		inc word [total_read_sec]
+		inc word [total_read_sec] ; increment the count to read sector
+		dec word [kern32_secs]    ; decrement the count of kernel32 sectors
 
-		; migration address
-		mov ax, 512
-		add bx, ax		
-		jnc _disk_update_chs
+   		mov eax, cr0
+    	or al, 1
+    	mov cr0, eax    
+
+   		mov ax, GDT32_DATA        
+    	mov ds, ax              ; Load 32bit Date Segment Discriptor
+
+   		and al, 0xFE        
+    	mov cr0, eax            ; Disable Protected Mode 
+
+    	xor ax, ax 
+    	mov ds, ax
+    	mov es, ax
+ 
+		push es
+		xor dx, dx
+		mov es, dx
 	
-		; a carry happends		
-		xor bx, bx
-		mov ax, es
-		add ax, 0x1000
-		mov es, ax	
-		cmp ax, 0x5000					; kernel size of protected model
-		je _disk_loop_exit
+		mov edi, [kern32_entry_point]
+		mov esi, 0x10000
+		mov ecx, 0x200 ; This macro was inserted from building 
+		rep movsb
 
+		mov eax, 0x100000
+		mov dword [eax], 0xffeedd22
+
+		pop es
+
+		mov dword [kern32_entry_point], edi  
+		
 		; increment the read sector count
 		_disk_update_chs:
 		inc word [start_sec]
@@ -223,29 +276,17 @@ _load_kernel:
 		mov ax, [cylins]
 		inc word [start_cylin]				
 		cmp [start_cylin], ax 
+
+		; check if disk loop exit
+		cmp word [kern32_secs], 0
+		je _disk_loop_exit
+
 		jl _disk_loop
 
 		jmp _error
 
 	_disk_loop_exit:
 	popa
-
-; From here, preapre for GDT used in protected mode
-_gdt_sec:
-	push GDT_MSG               
-    call vga_text_print         
-    add sp, 2
-
-.gdt_load:
-	xor eax, eax
-	mov ax, ds
-	shl eax, 4
-	add eax, _gdt_tbl
-	mov [_gdtr+2], eax
-	mov eax, _gdtr
-	sub eax, _gdt_tbl
-	mov [_gdtr], ax
-	lgdt [_gdtr]
 
 ; From here, start to get into protected mode.
 _pre_pmode:	
@@ -258,15 +299,15 @@ _pre_pmode:
 [bits 32]
 _penter:
 	; In this area, skip to set ss because for setting properly the stack position, we must to know system memery-map. So, the reposibility of setting stack delegates the boot-lodaer in protected mode.
-	mov eax, GDT32_DATA		
-	mov ds, eax				; Load 32bit Date Segment Discriptor
-	mov es, eax
-	mov fs, eax
-	mov gs, eax
+	mov ax, GDT32_DATA		
+	mov ds, ax				; Load 32bit Date Segment Discriptor
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
 
 	mov edi, PMODE_ENTRY_POINT
 	mov esi, 0x10000
-	mov ecx, 0x40000
+	;mov ecx, KERN32_SIZE ; This macro was inserted from building 
 	rep movsb 
 
 	; for compatibility of multiboot2
@@ -328,6 +369,10 @@ _error:
 	jmp $
 
 __isr_gp:
+	push MSG_SEC_BOOT
+	call vga_text_print
+	add sp, 2
+
 	jmp $	
 	
 
@@ -344,8 +389,8 @@ _gdt32_code_desp:
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
-	db 10011010b
-	db 11001111b
+	db 0b10011010
+	db 0b11001111
 	db 0x00
 
 ; 32 Data Segment
@@ -353,26 +398,26 @@ _gdt32_data_desp:
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
-	db 10010010b
-	db 11001111b
+	db 0b10010010
+	db 0b11001111
 	db 0x00
 
 ; 64 Code Segment
-_gdt64_code_desp:
+_gdt16_code_desp:
     dw 0xFFFF       ; limit = 0
     dw 0x0000       ; base1[16] = 0
     db 0x00         ; base2[8] = 0
     db 0b10011010   ; P = 1, DPL[6:5] = 0, S = 1, TYPE[3:0] = 1010 
-    db 0b10101111   ; G = 1, D/B = 0, L = 1, AVL = 0, LIMIT[3:0] = 0 
+    db 0b00000000   ; G = 0, D/B = 0(0:16bit, 1:32bit), L = 0, AVL = 0, LIMIT[3:0] = 0 
     db 0x00         ; base3[8] = 0
 	
 ; 64 Data Segment
-_gdt64_data_desp:
+_gdt16_data_desp:
     dw 0xFFFF       ; limit = 0
     dw 0x0000       ; base1[16] = 0
     db 0x00         ; base2[8] = 0
     db 0b10010010   ; P = 1, DPL[6:5] = 0, S = 1, TYPE[3:0] = 0010 
-    db 0b11001111   ; G = 1, D/B = 1, L = 0, AVL = 0, LIMIT[3:0] = 0 
+    db 0b00000000   ; G = 0, D/B = 0(0:16bit, 1:32bit), L = 0, AVL = 0, LIMIT[3:0] = 0 
     db 0x00         ; base3[8] = 0
 
 _gdtr:
@@ -381,13 +426,15 @@ _gdtr:
 
 GDT32_CODE equ _gdt32_code_desp - _gdt_tbl
 GDT32_DATA equ _gdt32_data_desp - _gdt_tbl
-GDT64_CODE equ _gdt64_code_desp - _gdt_tbl
-GDT64_DATA equ _gdt64_data_desp - _gdt_tbl
+GDT16_CODE equ _gdt16_code_desp - _gdt_tbl
+GDT16_DATA equ _gdt16_data_desp - _gdt_tbl
 
 ; MM
 total_size  : 	dw 0
 
 ; disk
+kern32_entry_point : dd 0x00100000
+kern32_secs : 	dw KERN32_SECS
 total_read_sec: dw 0
 start_cylin :   dw 0
 start_head	:   dw 0
@@ -407,10 +454,7 @@ GDT_MSG:		db 'Start preparing for GDT of protected mode', 0
 size equ $ - entry
 times ((512*4) - size) nop
 %ifndef P32
-times (512*128) db 0x44 ; 0x10000 ~ 0x20000 for test for 32-bit
-times (512*128) db 0x55 ; 0x20000 ~ 0x30000 for test for 32-bit
-times (512*128) db 0x66 ; 0x30000 ~ 0x40000 for test for 32-bit
-times (512*128) db 0x77 ; 0x40000 ~ 0x50000 for test for 32-bit
+times KERN32_SECS*512 db 0x44
 %endif
 
 %endif 

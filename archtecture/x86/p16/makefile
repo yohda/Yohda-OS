@@ -5,24 +5,28 @@ OBJ_DIR:=temp
 LD:=i686-elf-gcc
 LDFLAG:= -ffreestanding -O2 -nostdlib -T link.ld
 
-#$(info $(OBJS))
+#$(info $(KERN32_SECS)) # for print log out of target
 
 QE32:=qemu-system-i386
-QE32_LEGACY_FLAG:=
 QE32_Q35_FLAG:=-m 4096 -M q35 -d int -no-reboot -no-shutdown -D ./log.txt
 QE32_HOST_FLAG:=-m 4096 -M virt -d int -no-reboot -no-shutdown -cpu host -enable-kvm
 
 YASM:=nasm
 ifdef P32 # for only real mode
-YAFLAG:=-f elf -g3 -F dwarf -DP32
+YAFLAG:=-f elf -g3 -F dwarf -DP32 -DKERN32_SECS=${KERN32_SECS}
 else
-YAFLAG:=-f elf -g3 -F dwarf
+YAFLAG:=-f elf -g3 -F dwarf -DKERN32_SECS=${KERN32_SECS}
 endif
 
+ifndef KERN32_SECS
+all:
+	@echo "Warning:You must specified 32-bit kernel secs!!!"
+else
 all: pre bl.elf post 
 
+endif
 pre:
-	mkdir -p $(OBJ_DIR)
+	mkdir -p $(OBJ_DIR)	
 
 %.o: %.asm	
 	$(YASM) $(YAFLAG) $< -o $@
@@ -59,7 +63,7 @@ host-debug:
 	$(QE32) $(QE32_HOST_FLAG) -fda $(OBJ_DIR)/bl.bin -S -s		
 
 gdb:
-	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break fbl.asm:_fbl_start' # -ex 'continue' -ex 'set architecture i8086' 
+	gdb $(OBJ_DIR)/bl.elf -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break sbl.asm:_a20_sec' # -ex 'continue' -ex 'set architecture i8086' 
 
 clean:
 	rm -rf $(OBJ_DIR)	
