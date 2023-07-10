@@ -22,7 +22,7 @@ LDFLAG:= -O2 -nostdlib -T link.ld
 endif
 
 QEMU:=qemu-system-i386
-QEMU_Q35_FLAG:=-m 4096 -M q35 -d int -no-reboot -no-shutdown -boot d -drive id=disk,file=disk.img,if=none -device ahci,id=ahci -device ide-drive,drive=disk,bus=ahci.0 #-hda disk.img 
+QEMU_Q35_FLAG:=-m 4096 -M q35  -no-reboot -no-shutdown -boot d -drive id=disk,file=disk.img,if=none -device ahci,id=ahci -device ide-drive,drive=disk,bus=ahci.0 #-d int #-hda disk.img 
 QEMU_I440FX_FLAG:=-m 2048 -M pc-0.15 -d int -no-reboot -no-shutdown -boot d -hda disk.img -monitor stdio
 QEMU_HOST_FLAG:=-m 4096 -M virt -d int -no-reboot -no-shutdown -cpu host -enable-kvm -monitor stdio
 
@@ -41,7 +41,7 @@ all: pre ${ELF_IMG} post
 
 pre:
 	mkdir -p $(OBJ_DIR)
-	make P32=1 -C $(X86_16_BASE) # build 16-bit x86
+	make KERN32_SIZE=${SIZE} P32=1 -C $(X86_16_BASE) # build 16-bit x86
 
 %.o: %.asm	
 	$(YASM) $(YAFLAG) $< -o $@
@@ -108,7 +108,7 @@ i440-debug:
 	$(QEMU) $(QEMU_I440FX_FLAG) -fda $(OBJ_DIR)/${IMG} -S -s
 
 gdb:
-	gdb $(OBJ_DIR)/${ELF_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break main.c:33' -ex 'continue' #-ex 'watch *0x300000'
+	gdb $(OBJ_DIR)/${ELF_IMG} -ex 'target remote localhost:1234' -ex 'layout src' -ex 'layout regs' -ex 'break main.c:main' -ex 'continue' #-ex 'watch *0x300000'
 
 clean:
 	rm -rf $(OBJ_DIR) ./iso

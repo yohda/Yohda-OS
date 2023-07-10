@@ -64,7 +64,5 @@ int proc_init()
 	if(!proc_mgr.stack)
 		err_dbg(-1, "Failed to allocate the kernel stack size#", PROC_MAX * PROC_STACK_SIZE);
 
-	sched_init(&dummy);
-
 	proc_mgr.inited = 1;
 }

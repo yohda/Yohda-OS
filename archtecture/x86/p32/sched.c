@@ -10,17 +10,16 @@ struct scheduler {
 	uint32_t readys;
 	struct list_node *block_list;	
 	uint32_t blocks;
-	struct proc_ctrl_blk *proc;
+	struct proc_context *context;	// scheduler context
+	struct proc_ctrl_blk *proc;		// current process running 
 };
 
 struct scheduler scheduler;
-extern void context_switch(struct proc_context **old, struct proc_context *new);
 
 static void _sched(void)
 {
 	struct list_node *node = NULL;
 	struct proc_ctrl_blk *new = NULL;	
-	struct proc_ctrl_blk *old = scheduler.proc;
 
 	if(!scheduler.inited)
 		return -1;
@@ -33,14 +32,15 @@ static void _sched(void)
 		if(!node) // ready list is empty
 			return 0; 	
 
-		scheduler.readys--;
 		new = container_of(node, struct proc_ctrl_blk, node); 
 		if(!new) // ready list is empty
 			return 0; 	
 	
+		scheduler.readys--;
 		new->state = PROC_RUN;
 		scheduler.proc = new;
-		context_switch(&old->context, new->context);
+
+		context_switch(&(scheduler.context), new->context);
 	}
 		
 	// Never come here	
@@ -49,6 +49,11 @@ static void _sched(void)
 void sched(void)
 {
 	_sched();
+}
+
+struct proc_ctrl_blk *sched_get_proc(void)
+{
+	return scheduler.proc;
 }
 
 static void _sched_add_ready(struct proc_ctrl_blk *proc)
@@ -70,7 +75,6 @@ void sched_exit(void)
 	proc->state = PROC_TERM;	
 	
 	_sched_add_ready(proc);
-	sched();
 }
 
 void sched_timer(void)
@@ -86,24 +90,23 @@ void sched_timer(void)
 	proc->state = PROC_READY;	
 	
 	_sched_add_ready(proc);
-	sched();
 }
 
 // But, it does not mean it killed myself.
 void sched_yield(void)
 {
-	struct proc_ctrl_blk *proc = scheduler.proc;
+	struct proc_ctrl_blk *curr_proc = scheduler.proc;
 	
 	if(!scheduler.inited)
 		return err_dbg(-1, "ERR\n");
 	
-	if(!proc)
+	if(!curr_proc)
 		return err_dbg(NULL, "ERR\n");
 
-	proc->state = PROC_READY;	
+	curr_proc->state = PROC_READY;	
+	_sched_add_ready(curr_proc);
 	
-	_sched_add_ready(proc);
-	sched();
+	context_switch(&(curr_proc->context), scheduler.context);	
 }
 
 // Wait for a event about I/O
@@ -120,7 +123,6 @@ void sched_sleep(void)
 	proc->state = PROC_BLOCK;
 		
 	sched_add_block(proc);	
-	sched();
 }
 
 void sched_add_block(struct proc_ctrl_blk *proc)
@@ -145,7 +147,22 @@ void sched_add_ready(struct proc_ctrl_blk *proc)
 	_sched_add_ready(proc);
 }
 
-int sched_init(struct proc_ctrl_blk *dummy)
+void sched_del_ready(const struct proc_ctrl_blk *proc)
+{
+	if(!scheduler.inited)
+		return -1;
+	
+	if(!proc)
+		return NULL;
+
+	if(proc->state != PROC_READY)	
+		return NULL;
+
+	list_del(scheduler.ready_list, &proc->node);
+	scheduler.readys--;
+}
+
+int sched_init()
 {	
 	/* Scheduler Initialization  */
 	memset(scheduler, 0, sizeof(scheduler));
@@ -157,9 +174,6 @@ int sched_init(struct proc_ctrl_blk *dummy)
 	if(!scheduler.block_list)	
 		return err_dbg(-2, "err\n");	
 
-	if(!dummy)
-		return err_dbg(-3, "err\n");	
-
 	list_init_head(scheduler.ready_list);
 	list_init_head(scheduler.block_list);
 	
@@ -169,6 +183,4 @@ int sched_init(struct proc_ctrl_blk *dummy)
 	scheduler.inited = true;
 
 	/* Kernel Init Process is scheduler */	
-	scheduler.proc = dummy;
-	_sched_add_ready(dummy);
 }

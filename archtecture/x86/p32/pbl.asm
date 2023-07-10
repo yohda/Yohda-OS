@@ -21,8 +21,8 @@ section .text
 global higher_half_start
 
 higher_half_start:
-	;mov dword [pdes+0], 0
-	;invlpg [pdes+0] 	
+	mov dword [pdes+0], 0
+	invlpg [pdes+0] 	
 
 	lgdt [_gdtr]
 	jmp GDT32_CODE:gdt_load

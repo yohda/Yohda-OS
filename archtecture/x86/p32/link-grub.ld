@@ -1,6 +1,7 @@
 SECTIONS
 {
 	. = 0x100000;
+	sboot_size = .;
 	.multiboot_header : 
 	{
 		KEEP(*(.multiboot_header))	
@@ -9,12 +10,12 @@ SECTIONS
 	. = ALIGN(0x8000);
 	.text.boot :
 	{
-		pbl.o (.text.boot)	
+		paging.o (.text.boot)	
 	}
 
 	.data.boot :
     {
-		pbl.o (.data.boot)
+		paging.o (.data.boot)
     }
 	eboot_size = .;
 	
@@ -25,7 +26,7 @@ SECTIONS
 	_kernel32_start = .;	
 	.text : AT(ADDR(.text) - _virt_base)
 	{
-		paging.o (.text)
+		pbl.o (.text)
 		main.o (.text)
 		*(.text)
 	}

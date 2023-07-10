@@ -5,8 +5,8 @@
 
 extern higher_half_start
 
-MB_MAGIC_YOHDA_OS	equ 0x3f221d73
-MB_MAGIC_MACH_STATE equ 0x36d76289
+;MB_MAGIC_YOHDA_OS	equ 0x3f221d73
+;MB_MAGIC_MACH_STATE equ 0x36d76289
 
 %ifdef GRUB
 section .multiboot_header write
@@ -52,6 +52,22 @@ _start:
 	or ecx, 1<<4 ; PSE : Need to use 4MB in protected mode
 	mov cr4, ecx
 
+	mov ecx, 768
+	mov edx, 0x00000083
+	.pdes_loop:
+		cmp ecx, 1024
+		je .pdes_exit
+
+		mov [pdes+ecx*4], edx
+	
+		inc ecx	
+		add edx, 0x400000
+		
+		jmp .pdes_loop
+	.pdes_exit:
+	
+	; first page 4MB
+	; 0xC000_0000 ~ 0xFFFF_FFFF : Ide
 	mov ecx, pdes
 	mov cr3, ecx	
 
@@ -66,13 +82,6 @@ align 4096
 global pdes ; in later, main will use them
 pdes:
 	dd 0x00000083 ; Identify Mapped [0x000000:0x400000]
-	times 767 dd 0x00000000; 
-	dd 0x00000083 ;Identify Mapped [0xC0000000:0xC0400000]
-	times 255 dd 0x00000000
-;%assign i 0
-;%rep 256
-;	dd 0x00000083 + i
-;%assign i i+0x400000
-;%endrep
+	times 1023 dd 0x00000000 ; 
 
 %endif
