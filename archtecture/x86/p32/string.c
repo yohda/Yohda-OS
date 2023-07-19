@@ -111,6 +111,19 @@ char *strncpy(char *dst, const char *src, int cnt)
 	return dst;
 }
 
+//https://en.cppreference.com/w/c/string/byte/strncmp
+int strncmp(const char *s1, const char *s2, const int num)
+{
+	int i, s;
+	for(i = 0; i < num; i++) {
+		s = s1[i] - s2[i];
+		if(s)
+			return s;	
+	}
+
+	return 0;
+}
+
 // https://en.cppreference.com/w/c/string/byte/strcmp
 int strcmp(const char *s1, const char *s2)
 {
@@ -122,13 +135,7 @@ int strcmp(const char *s1, const char *s2)
 	if(!len)
 		return *s1 - *s2;
 
-	for(i = 0; i < len; i++) {
-		s = s1[i] - s2[i];
-		if(s)
-			return s;	
-	}
-			
-	return 0;
+	return strncmp(s1, s2, len);
 }
 
 // https://en.cppreference.com/w/c/string/byte/memset

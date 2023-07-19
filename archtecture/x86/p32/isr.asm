@@ -3,9 +3,9 @@
 
 [BITS 32]
 
-extern isr_division_error_handler, isr_common_handler, isr_non_maskable_interrupt_handler, isr_general_protection_fault_handler, isr_page_fault_handler, isr_system_timer_handler, isr_ps2_keyboard_interrupt_handler
+extern isr_division_error_handler, isr_common_handler, isr_non_maskable_interrupt_handler, isr_general_protection_fault_handler, isr_page_fault_handler, isr_system_timer_handler, isr_ps2_keyboard_interrupt_handler, syscall_dispatch_handler
 
-global isr_division_error, isr_debug, isr_non_maskable_interrupt, isr_breakpoint, isr_overflow, isr_bound_range_exceeded, isr_invalid_opcode, isr_device_not_available, isr_double_fault, isr_invalid_tss, isr_segment_not_present, isr_stack_segment_fault, isr_general_protection_fault, isr_page_fault, isr_x87_floating_point_exception, isr_alignment_check, isr_machine_check, isr_simd_floating_point_exception, isr_virtualization_exception, isr_system_timer_interrupt, isr_ps2_keyboard_interrupt
+global isr_division_error, isr_debug, isr_non_maskable_interrupt, isr_breakpoint, isr_overflow, isr_bound_range_exceeded, isr_invalid_opcode, isr_device_not_available, isr_double_fault, isr_invalid_tss, isr_segment_not_present, isr_stack_segment_fault, isr_general_protection_fault, isr_page_fault, isr_x87_floating_point_exception, isr_alignment_check, isr_machine_check, isr_simd_floating_point_exception, isr_virtualization_exception, isr_system_timer_interrupt, isr_ps2_keyboard_interrupt, isr_syscall
 
 align 4
 isr_division_error:
@@ -331,6 +331,18 @@ isr_ps2_keyboard_interrupt:
 	cld	
 	
 	push 33
+	call isr_ps2_keyboard_interrupt_handler
+	add esp, 4
+
+	popad
+	iret
+
+isr_syscall:
+	pushad
+	mov ebp, esp
+	cld	
+	
+	push 80
 	call isr_ps2_keyboard_interrupt_handler
 	add esp, 4
 

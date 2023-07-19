@@ -1,6 +1,9 @@
 #ifndef _CPU_H_
 #define _CPU_H_
 
+#include "type.h"
+#include "proc.h"
+
 extern void mode64(void);
 extern void cpu_init(void);
 extern void cli(void);

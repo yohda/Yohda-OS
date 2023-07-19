@@ -13,9 +13,6 @@ struct proc_mgmt {
 
 struct proc_mgmt proc_mgr;
 
-/* Create a dummy process for context switch */
-struct proc_ctrl_blk dummy;
-
 void *proc_create(const void *entry_point)
 {
 	struct proc_ctrl_blk *proc = NULL;
@@ -39,14 +36,24 @@ void *proc_create(const void *entry_point)
 	proc->stack = proc_mgr.stack + (i*PROC_STACK_SIZE);
 	proc->id = proc_mgr.pid++;
 
-	proc->context = (proc->stack + PROC_STACK_SIZE) - sizeof(struct proc_context);
-	memset(proc->context, 0, sizeof(struct proc_context));
-	
-	proc->context->eip = (uint32_t)entry_point; 
+	proc->ic = (proc->stack + PROC_STACK_SIZE) - sizeof(struct intr_context);
+	//proc->ic->entry = switch_kern_to_user; 
+		
+	proc->pc = (uint32_t)(proc->ic) - sizeof(struct proc_context);
+	memset(proc->pc, 0, sizeof(struct proc_context));
+
+	proc->pc->eip = entry_point ? entry_point : switch_kern_to_user;
 
 	sched_add_ready(proc);	
 
 	return proc;
+}
+
+void *proc_create_user(void)
+{
+	struct proc_ctrl_blk* init;
+
+	
 }
 
 void *proc_exit(struct proc_ctrl_blk *proc)

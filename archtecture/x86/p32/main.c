@@ -11,8 +11,10 @@
 #include "multiboot2.h"
 #include "keyboard.h"
 #include "proc.h"
+#include "mp.h"
 
 extern void load_higher_half(void);
+extern uint32_t *_tss;
 
 int main();
 
@@ -112,6 +114,9 @@ int main(unsigned long magic, unsigned long addr)
 	}
 
 	debug("CPUID#0x%x, X64#0x%x, 4MB#0x%x 1GB#0x%x STD#0x%x EXT#0x%x\n", CPUID, CPUID_64, CPUID_PAGE_4MB, CPUID_PAGE_1GB, CPUID_STD_FUNCS, CPUID_EXT_FUNCS);
+	
+	mp_init();
+	
 	/*
 	 * PIC remap some interrupts to prevent from hanppening the double fault.
 	 * So, PIC was initialized first than interrupt enable.
@@ -121,7 +126,7 @@ int main(unsigned long magic, unsigned long addr)
 	
 	pit_init();	
 	keyboard_init();
-
+	
 	sti();
 	/* Device initialization */
 	//pci_init();
@@ -137,6 +142,7 @@ int main(unsigned long magic, unsigned long addr)
 	proc_create(test2);
 
 	sched();
+
 
 	while(1);
 }

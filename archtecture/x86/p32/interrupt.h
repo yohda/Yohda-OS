@@ -9,6 +9,7 @@ extern void isr_general_protection_fault(void);
 extern void isr_page_fault(void);
 extern void isr_system_timer_interrupt(void);
 extern void isr_ps2_keyboard_interrupt(void);
+extern void isr_syscall(void);
 
 struct exception_info {
 	uint32_t ds, es, fs, gs;
@@ -30,13 +31,16 @@ enum {
 	INT_RSVD1 			= 0x1F,
 	INT_VEC_SYS_TIMER 	= 0x20,
 	INT_VEC_PS2_KEY		= 0x21,
+	INT_VEC_SYS_CALL	= 0x80,
 	INT_VEC_MAX
 };
 
-#define IDT_ATTR_TYPE_32INT 	(0x0E)
-#define IDT_ATTR_TYPE_32TRAP 	(0x0F)
-#define IDT_ATTR_TYPE_16INT		(0x06)
-#define IDT_ATTR_TYPE_16TRAP	(0x07)
-#define IDT_PRES				(0x80)
+#define IDT_KERN_INTR			(0x8E)
+#define IDT_KERN_TRAP			(0x8F)
+#define IDT_USER_INTR			(0xEE)
+#define IDT_USER_TRAP			(0xEF)
+
+void interrupt_register_handler(const int vector, const u32 offset, const u8 attr);
+void interrupt_init(void);
 
 #endif

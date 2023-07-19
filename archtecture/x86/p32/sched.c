@@ -40,7 +40,7 @@ static void _sched(void)
 		new->state = PROC_RUN;
 		scheduler.proc = new;
 
-		context_switch(&(scheduler.context), new->context);
+		context_switch(&(scheduler.context), new->pc);
 	}
 		
 	// Never come here	
@@ -106,7 +106,7 @@ void sched_yield(void)
 	curr_proc->state = PROC_READY;	
 	_sched_add_ready(curr_proc);
 	
-	context_switch(&(curr_proc->context), scheduler.context);	
+	context_switch(&(curr_proc->pc), scheduler.context);	
 }
 
 // Wait for a event about I/O

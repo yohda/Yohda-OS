@@ -59,7 +59,7 @@ void isr_page_fault_handler(const struct exception_info exc)
 	while(1);
 }
 
-void idt_reg_isr(const int vector, const u32 offset, const u8 attr)
+void interrupt_register_handler(const int vector, const u32 offset, const u8 attr)
 {
 	if(vector<0 || vector>IDT_MAX_ENTRYS)
 		return -1;
@@ -70,7 +70,7 @@ void idt_reg_isr(const int vector, const u32 offset, const u8 attr)
 	idt_tbl[vector].attr = attr;
 }
 
-void interrupt_init()
+void interrupt_init(void)
 {
 	int i;
 
@@ -78,13 +78,13 @@ void interrupt_init()
 	idtr.base = (u32)idt_tbl;
 
 	for(i=0 ; i<INT_VEC_MAX; i++) {
-		idt_reg_isr(i, isr_common_handler, 0x8F);	
+		interrupt_register_handler(i, isr_common_handler, 0x8F);	
 	}
 
-	idt_reg_isr(INT_VEC_DBZ, isr_division_error, 0x8F);
-	idt_reg_isr(INT_VEC_NMI, isr_non_maskable_interrupt, 0x8F);
-	idt_reg_isr(INT_VEC_GPF, isr_general_protection_fault, 0x8F);
-	idt_reg_isr(INT_VEC_PF, isr_page_fault, 0x8F);
+	interrupt_register_handler(INT_VEC_DBZ, isr_division_error, 0x8F);
+	interrupt_register_handler(INT_VEC_NMI, isr_non_maskable_interrupt, 0x8F);
+	interrupt_register_handler(INT_VEC_GPF, isr_general_protection_fault, 0x8F);
+	interrupt_register_handler(INT_VEC_PF, isr_page_fault, 0x8F);
 	
 	__asm__ __volatile__ ("lidt %0" : : "m"(idtr));
 }

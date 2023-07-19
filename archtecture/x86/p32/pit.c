@@ -37,17 +37,17 @@ void isr_system_timer_handler(const int irq)
 	time_ticks++;
 
 	if(!pit.tps) {
-		pci_eoi(irq);
+		pic_eoi(irq);
 		return ;
 	}
 
 	if(time_ticks % pit.tps == 0) {
-		time_secs++;
+		//time_secs++;
 		//sched_timer();
-		debug("Passed %d seconds!!\n", time_ticks / pit.tps);
+		//debug("Passed %d seconds!!\n", time_ticks / pit.tps);
 	}
 	
-	pci_eoi(irq);
+	pic_eoi(irq);
 }
 
 void pit_set_freq(const int freq)
@@ -77,8 +77,8 @@ int pit_init()
 	pit.tps = PIT_DEF_HZ / PIT_MAX_FREQ; // default frequency 
 
 	pit_set_freq(PIT_1MSC_FREQ);
-
-	idt_reg_isr(INT_VEC_SYS_TIMER, isr_system_timer_interrupt, 0x8F);
+	
+	interrupt_register_handler(INT_VEC_SYS_TIMER, isr_system_timer_interrupt, 0x8F);
 	
 	pit.inited = true;
 }

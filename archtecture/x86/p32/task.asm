@@ -2,7 +2,7 @@
 %define _TASK_ASM_
 
 section .text
-global context_switch
+global context_switch, swtich_user_to_kern, switch_kern_to_user
 
 context_switch:
 	mov eax, [esp+4] ; old context
@@ -23,4 +23,10 @@ context_switch:
 
 	ret
 
-%endif
+switch_kern_to_user:
+	
+
+switch_user_to_kern:
+
+
+%endif<F5>

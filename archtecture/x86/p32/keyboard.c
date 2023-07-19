@@ -74,7 +74,7 @@ int keyboard_init(void)
 		debug("Keyboard Disabled...??\n");
 		pic_set_mask(PIC_IRQ1, false);		
 	}
-
-	idt_reg_isr(INT_VEC_PS2_KEY, isr_ps2_keyboard_interrupt, 0x8F);
+		
+	interrupt_register_handler(INT_VEC_PS2_KEY, isr_ps2_keyboard_interrupt, 0x8F);
 }
 
