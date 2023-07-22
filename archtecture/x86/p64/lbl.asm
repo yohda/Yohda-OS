@@ -9,7 +9,28 @@ PAGE_IA32_EFER_ADDR equ 0xC0000080
 section .data.page64 write
 align 4096
 page_pml4:
-	times 1024 dd 0
+	dd 0x00000003
+	dd 0x00000000
+	times 1020 dd 0
+	dd 0x00000003
+	dd 0x00000000
+
+align 4096
+page_pdpt:
+	times 1020 dd 0
+	dd 0x00000003
+	dd 0x00000000
+	dd 0x00000003
+	dd 0x00000000
+
+align 4096
+page_pd: ; 1GB
+%assign i 0
+%rep 512
+	dd 0x00000083+i
+	dd 0x00000000
+%assign i i+0x200000
+%endrep
 
 ; Load Page Table
 align 4096
@@ -31,6 +52,25 @@ page_high_pdtp:
 align 4096
 page_fhigh_pd: ; 1GB
 	times 1024 dd 0 
+
+align 4096
+page_pd1: ; 1GB
+%assign i 0
+%rep 512
+	dd 0x00000083+i
+	dd 0x00000000
+%assign i i+0x200000
+%endrep
+
+align 4096
+page_pd2: ; 1GB
+%assign i 0
+%rep 512
+	dd 0x00000083+i
+	dd 0x00000000
+%assign i i+0x200000
+%endrep
+
 
 ;align 4096
 ;page_high_pt1:
@@ -88,14 +128,6 @@ page_high_pt6:
 %assign i i+0x1000
 %endrep
 
-align 4096
-page_shigh_pd: ; 1GB
-%assign i 0
-%rep 512
-	dd 0x00000083+i
-	dd 0x00000000
-%assign i i+0x200000
-%endrep
 
 section .text.mode64 exec nowrite
 global _start_64:
@@ -110,6 +142,8 @@ _start_64:
 	mov eax, cr4
 	or eax, 1<<5	; CR4[5] = PAE
 	mov cr4, eax
+
+	;mov dword [page_pml4], 
 
 	; Load 4MB Low Temporary Identify Mapped Paging Table
 	mov dword [page_pml4], page_temp_pdtp + 0x00000003
@@ -129,18 +163,18 @@ _start_64:
 ;%assign j j+4096 
 ;%endrep
 
-	mov dword [page_fhigh_pd], page_high_pt2 + 0x00000003
-	mov dword [page_fhigh_pd+8], page_high_pt3 + 0x00000003
-	mov dword [page_fhigh_pd+16], page_high_pt4 + 0x00000003
-	mov dword [page_fhigh_pd+24], page_high_pt5 + 0x00000003
-	mov dword [page_fhigh_pd+32], page_high_pt6 + 0x00000003
+	;mov dword [page_fhigh_pd], page_high_pt2 + 0x00000003
+	;mov dword [page_fhigh_pd+8], page_high_pt3 + 0x00000003
+	;mov dword [page_fhigh_pd+16], page_high_pt4 + 0x00000003
+	;mov dword [page_fhigh_pd+24], page_high_pt5 + 0x00000003
+	;mov dword [page_fhigh_pd+32], page_high_pt6 + 0x00000003
 
 	; 510 & 511 PDTPE`s setting.	
-	mov dword [page_high_pdtp+510*2*4], page_fhigh_pd + 0x00000003
-	mov dword [page_high_pdtp+511*2*4], page_shigh_pd + 0x00000003
+	mov dword [page_high_pdtp+510*8], page_pd1 + 0x00000003
+	mov dword [page_high_pdtp+511*8], page_pd2 + 0x00000003
 	
 	; 511 PML4E`s setting. 
-	mov dword [page_pml4+511*2*4], page_high_pdtp + 0x00000003
+	mov dword [page_pml4+511*8], page_high_pdtp + 0x00000003
 
 	mov eax, page_pml4
 	mov cr3, eax
