@@ -27,6 +27,24 @@ struct memory_layout {
 	u32 size;
 };
 
+// For compatibility of multiheader2
+struct mmap_entry {
+  uint64_t addr;
+  uint64_t len;
+#define MULTIBOOT_MEMORY_AVAILABLE              1
+#define MULTIBOOT_MEMORY_RESERVED               2
+#define MULTIBOOT_MEMORY_ACPI_RECLAIMABLE       3
+#define MULTIBOOT_MEMORY_NVS                    4
+#define MULTIBOOT_MEMORY_BADRAM                 5
+  uint32_t type;
+  uint32_t zero;
+};
+
+struct mmap {
+	uint32_t size;
+	struct mmap_entry entries[0];
+};
+
 struct mm {
 	void *base;	// primary memory management base address
 	int size;
