@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/bash
 
 OBJ_DIR=temp
 SECTOR_SIZE=512
@@ -59,6 +59,12 @@ BOCHS_CHS_ONE_CYLINDER=$(($BOCHS_CHS_MAX_SECS*$BOCHS_CHS_MAX_HEADS))
 #	fi
 if [ $1 == "build" ]; then 
 	KERN32_SIZE=$(stat -L -c %s ../p32/temp/kernel.bin)
+
+	if [ $? -ne 0 ]; then
+		echo "Error: 32-bit kernel image is not exist"
+		exit 2
+	fi
+
 	echo "32-bit kernel size:" $KERN32_SIZE 
 	echo "===================== build ====================="
 

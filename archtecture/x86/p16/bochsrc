@@ -20,7 +20,7 @@ megs: 256
 
 # Hard Disk Teset
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
-ata0-master: type=disk, path=./temp/bl.img, mode=flat, cylinders=1, heads=11, spt=47, translation=none
+ata0-master: type=disk, path=./temp/bl.img, mode=flat, cylinders=2, heads=16, spt=63, translation=none
 
 # Boot order setup 
 boot: disk, floppy, cdrom
