@@ -37,4 +37,4 @@ boot: disk, floppy, cdrom
 log: bochsout.txt
 
 # GUI Internal debugger
-#display_library: x, options="gui_debug"
+display_library: x, options="gui_debug"

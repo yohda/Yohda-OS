@@ -38,6 +38,8 @@ else
 YAFLAG:=-f elf32 -g3 -F dwarf
 endif
 
+.PHONY: all pre i440 qf qc qh host post image disk cd qf-debug qh-debug qc-debug host-debug i440-debug gdb clean
+
 all: pre ${ELF_IMG} post image
 
 pre:
