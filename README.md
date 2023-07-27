@@ -76,3 +76,4 @@ Under PC environment, YohdaOS works fine with some system firmwares  : `BIOS`, `
 - Thread
 - mmap
 - Copy-On-Write
+- Semaphore
