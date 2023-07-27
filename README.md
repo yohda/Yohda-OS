@@ -53,17 +53,22 @@
 | AArch64 | X |
 
 ## Supported Emulators
-
 YohdaOS supports three emulators : `QEMU`, `BOCHS` and `Virtualbox`
-
 
 ## Supported Boot Image
 YohdaOS supports some of disk image format : `*.img`, `*.bin`, `*.iso`
 
-
 ## Supported Bootloaders
-
 YohdaOS supports boot-up via some boot-loaders : `GRUB`
 
 ## Supported System Firmware
 Under PC environment, YohdaOS works fine with some system firmwares  : `BIOS`, `UEFI`
+
+## To-do implement
+- Demand Page
+- Swapping
+- Multilevel-Feedback Queue Scheduling
+- Lock-Free
+- Thread
+- mmap
+- Copy-On-Write
