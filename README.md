@@ -11,23 +11,21 @@
      
 * **Boot Loader**
     * BIOS
-    * UEFI
     * GRUB
-       * Multiboot 
+       * Multiboot
+         
 * **Architecture**
     * Higher-half kernel
 
 * **Memory Map**
     * BIOS
     * GRUB
-    * UEFI
 
 * **Disk Drive**
     * ATA / PATA / IDE
     * SATA / AHCI
 
 * **Process Management**
-    * Thread
     * Scheduling
 
 * **Memory Management**
@@ -36,12 +34,17 @@
     * Buddy Allocator
        * Lazy Buddy   
     * Fast Memory Pool
+      
 * **File System**
   * FAT
+    
 * **Graphic**
   * VGA
      * Text Mode
         * Scrolling   
+
+* **Misc**
+   * Keyboard 
   
 ## Supported Modes
 
@@ -74,6 +77,8 @@ Under PC environment, YohdaOS works fine with some system firmwares  : `BIOS`, `
 - Multilevel-Feedback Queue Scheduling
 - Lock-Free
 - Thread
-- mmap
+- Mmap
 - Copy-On-Write
 - Semaphore
+- UEFI
+- ACPI
