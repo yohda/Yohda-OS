@@ -7,7 +7,7 @@ First of all, Actually, SBL does not have many things. it has a few jobs, follow
 
 > 1. Enable A20
 > 2. Set-up the Protected mode GDT
-> 3. Read the Kernel image from disk drive to load it into memory.
+> 3. Read the Kernel image from disk drive to memory.
 
 So, 4 sectors are enough to fullfill above jobs.
 
@@ -28,18 +28,25 @@ _sbl:
     push word [sbl_start_cylin] ; pass satrt cylinder
 ```
 
+Kernel Header
+---
+The header size is 128 bytes and header was appended at pre-position of kernel image. So, SBL first read a one sector from disk at `0x7E00`. 
+|Name|Offset|Size|Description|
+|-----|-------|-------|-----|
+|Signature|0x0000|0x08|ASCII `YODA`|
+|Kernel Size|0x0008|0x08|A unit is a sector|
+|Physical Addresss|0x0010|0x08|Memory Load Physical Address|
+|Virtual Addresss|0x0018|0x08|Memory Load Virtual Address|
+|Offset|0x0020|0x04|Kernel is located from offset in bytes|
+|Reserved|0x0024|0x5C|Reserved|
+***
 
+Kernel Emulator
+---
 For real mode in Yohda OS, there are many features to help you for developemnt.
 
-1" For building a real mode kernel, you just type `./setup.sh build`.
-This command will build real mode kernel and make the disk image associated with 32-bit kernel image.
-
-In YohdaOS, you have three choices to emulate virtual machines such as `QEMU`, `BOCHS` and `Virtualbox`
-But, if you want to start your kernel with `BOCHS`, in the first time, you wiil have to prepare for setting disk image sectors.
-But, don't worry about it. This is why you just type `./setup.sh` and print out the informations about disk image.
-
-2" For debugging, you have two choices, `QEMU` and `BOCHS`
-If you want to use `QEMU`, there are support three disk image type, `img`, `bin` and `iso`
-- If you type `make qf-debug`, disk image type is `floppy`
-- If you type `make qh-debug`, disk image type is `hard disk`
-- If you type `make qc-debug`, disk image type is `CD-ROM (this is ISO)`
+- In YohdaOS, you have three choices to emulate `YOHDA-OS` on virtual machines such as `QEMU`, `BOCHS` and `Virtualbox`. But, if you would like to start your kernel with `BOCHS`, in the first time, you wiil have to make a disk image for `BOSCH`. But, don't worry about it. This is why you just type `./setup.sh` and print out the informations about disk image.
+- For debugging, you have two choices, `QEMU` and `BOCHS`. If you would like to use `QEMU`, there are support three disk image type, `img`, `bin` and `iso`
+    * If you type `make qf-debug`, disk image type is `floppy`
+    * If you type `make qh-debug`, disk image type is `hard disk`
+    * If you type `make qc-debug`, disk image type is `CD-ROM (this is ISO)`
