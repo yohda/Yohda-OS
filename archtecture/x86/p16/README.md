@@ -13,11 +13,11 @@ So, 4 sectors are enough to fullfill above jobs.
 
 Second, Yohda OS would like to support the compatibility backward with old disk drive, such as, floppy. But, there are some disk drive that read only 4 sectors per one read. 
 
-Before the fbl give a control to sbl, make some disk paremeters to read at where kenel image was stored.
+After loading the binary of sbl into `0x7E00`, finally the fbl give a control to sbl with some disk paremeters to tell at where kenel image was stored and disk informations in current system.
 
 ```
 _sbl:
-    push word DISK_SBL_SECS+1   ; total sectors to read in fbl
+    push word DISK_SBL_SECS+1   ; total sectors read by fbl
     push word [drive_number]    ; pass drive number
     push word [vga_rows]        ; pass command line number for sbl
     push word [secs]            ; pass sectors per track
@@ -27,8 +27,6 @@ _sbl:
     push word [sbl_start_head]  ; pass start head
     push word [sbl_start_cylin] ; pass satrt cylinder
 ```
-
-
 
 
 For real mode in Yohda OS, there are many features to help you for developemnt.
