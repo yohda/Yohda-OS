@@ -1,6 +1,6 @@
 Boot loader
 ---
-In Yohda OS, There are two boot-loaders: first stage boot-loader(fbl.asm), secondary stage boot-loader(sbl.asm).
+In `Yohda OS`, There are two boot-loaders: `First stage boot-loader`, `Secondary stage boot-loader`.
 
 The FBL is responsible of loading the SBL to `0x7E00` with `4 sectors`. Basically, The size of SBL is limited in 2048 bytes.
 
